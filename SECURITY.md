@@ -2,10 +2,8 @@
 
 ## Supported versions
 
-| Version | Supported |
-| ------- | --------- |
-| 0.1.x   | ✅        |
-| < 0.1   | ❌        |
+Security fixes are provided for the latest released version. Please make sure
+you are running the most recent release before reporting an issue.
 
 ## Reporting a vulnerability
 
@@ -18,9 +16,9 @@ Report vulnerabilities by email to
 - Steps to reproduce or a proof-of-concept (if safe to share).
 - Any suggested mitigations you are aware of.
 
-You will receive an acknowledgement within **72 hours** and a status update
-within **7 days**. If the issue is confirmed, a patch and coordinated disclosure
-will follow as quickly as possible.
+You will receive an acknowledgement of your report, followed by a status update
+once it has been reviewed. If the issue is confirmed, a patch and coordinated
+disclosure will follow as quickly as possible.
 
 ## Scope
 

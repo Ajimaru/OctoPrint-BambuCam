@@ -7,6 +7,7 @@ exits. The daemon's working directory is the vendor directory so that the
 ``--showfps`` watermark can resolve its bundled TTF font via a relative path.
 """
 
+import ipaddress
 import json
 import os
 import re
@@ -178,10 +179,15 @@ class WebcamdManager:
     @staticmethod
     def port_in_use(port, bind_address="127.0.0.1"):
         """Return True if the given port is already bound on the host."""
-        wildcard = "0.0.0.0"  # nosec B104 - compared against, never bound to
-        probe_address = (
-            "127.0.0.1" if bind_address == wildcard else bind_address
-        )
+        # Probe a concrete address only. A wildcard bind_address ("0.0.0.0" or
+        # "::") means "all interfaces"; we never probe-bind to the wildcard
+        # itself — we fall back to loopback, which is enough to detect whether
+        # the port is already taken on this host.
+        try:
+            is_wildcard = ipaddress.ip_address(bind_address).is_unspecified
+        except ValueError:
+            is_wildcard = False
+        probe_address = "127.0.0.1" if is_wildcard else bind_address
         probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # webcam.py binds with allow_reuse_address (SO_REUSEADDR), so the probe
         # must too — otherwise a just-stopped daemon's socket lingering in
@@ -212,6 +218,11 @@ class WebcamdManager:
         auth_data += access_code.encode("ascii").ljust(32, b"\x00")
 
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        # Bambu LAN cameras present a self-signed cert and use a custom binary
+        # handshake, so cert/hostname verification is intentionally disabled.
+        # Floor the negotiated protocol at TLS 1.2 (printers support it) so the
+        # legacy TLSv1/1.1 versions are never offered.
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
 

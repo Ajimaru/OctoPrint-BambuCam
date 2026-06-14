@@ -18,6 +18,8 @@ jobs:
   lint:
     name: Lint (Python 3.12)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       BABEL_VERSION: "2.16.0"
       POLIB_VERSION: "1.2.0"

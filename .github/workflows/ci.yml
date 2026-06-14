@@ -18,6 +18,8 @@ jobs:
   test:
     name: Test (Python ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     env:
       BABEL_VERSION: "2.16.0"
       POLIB_VERSION: "1.2.0"
@@ -182,6 +184,8 @@ jobs:
   octoprint-smoke:
     name: Smoke (OctoPrint ${{ matrix.octoprint-label }})
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
