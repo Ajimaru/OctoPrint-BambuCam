@@ -1,0 +1,13 @@
+{
+  "source": {
+    "includePattern": ".+\\.js$"
+  },
+  "opts": {
+    "encoding": "utf8"
+  },
+  "templates": {
+    "default": {
+      "useLongnameInNav": true
+    }
+  }
+}

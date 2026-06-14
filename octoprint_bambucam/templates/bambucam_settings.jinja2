@@ -1,0 +1,248 @@
+<form class="form-horizontal" onsubmit="return false;">
+    <h3>{{ _("BambuCam") }}</h3>
+    <div class="control-group">
+        <div class="controls">
+            <label class="checkbox">
+                <input type="checkbox"
+                       data-bind="checked: settings.plugins.bambucam.enabled" />
+                {{ _("Enable BambuCam") }}
+            </label>
+        </div>
+    </div>
+    <ul class="nav nav-tabs" id="bambucam_settings_tabs">
+        <li class="active">
+            <a href="#bambucam_tab_connection" data-toggle="tab">{{ _("Connection") }}</a>
+        </li>
+        <li>
+            <a href="#bambucam_tab_advanced" data-toggle="tab">
+                {{ _("Image & Advanced") }}
+            </a>
+        </li>
+    </ul>
+    <div class="tab-content">
+        <!-- ── Tab 1: Connection ─────────────────────────────────────────── -->
+        <div class="tab-pane active" id="bambucam_tab_connection">
+            <h4>{{ _("Printer connection") }}</h4>
+            <div class="control-group">
+                <label class="control-label">{{ _("Printer IP / hostname") }}</label>
+                <div class="controls">
+                    <input type="text"
+                           class="input-block-level"
+                           data-bind="value: settings.plugins.bambucam.hostname"
+                           placeholder="192.168.1.100" />
+                    <span class="help-block">{{ _("IP address of your Bambu Lab printer (P1/A1 series, LAN mode). The X1 series is not supported.") }}</span>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">{{ _("Access code") }}</label>
+                <div class="controls">
+                    <input type="password"
+                           class="input-block-level"
+                           data-bind="value: settings.plugins.bambucam.access_code"
+                           autocomplete="new-password" />
+                    <span class="help-block">{{ _("LAN access code, shown on the printer display under network settings.") }}</span>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="controls">
+                    <button class="btn" data-bind="click: testConnection, enable: !testing()">
+                        <i class="fas fa-plug"></i> {{ _("Test connection") }}
+                    </button>
+                    <span data-bind="visible: testing()"><i class="fas fa-spinner fa-spin"></i></span>
+                    <span class="text-success" data-bind="visible: testResult() === 'ok'">{{ _("Connection successful!") }}</span>
+                    <span class="text-error"
+                          data-bind="visible: testResult() === 'auth_failed'">{{ _("Printer rejected the access code.") }}</span>
+                    <span class="text-error"
+                          data-bind="visible: testResult() === 'unreachable'">{{ _("Printer is unreachable.") }}</span>
+                    <span class="text-error" data-bind="visible: testResult() === 'timeout'">{{ _("Connection timed out.") }}</span>
+                    <span class="text-error" data-bind="visible: testResult() === 'error'">{{ _("Connection failed.") }}</span>
+                </div>
+            </div>
+            <h4>{{ _("Stream server") }}</h4>
+            <div class="control-group">
+                <label class="control-label">{{ _("HTTP port") }}</label>
+                <div class="controls">
+                    <input type="number"
+                           min="1024"
+                           max="65535"
+                           class="input-small"
+                           data-bind="value: settings.plugins.bambucam.port" />
+                    <span class="help-block">{{ _("Port of the local MJPEG server started by this plugin.") }}</span>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">{{ _("Bind address") }}</label>
+                <div class="controls">
+                    <select data-bind="value: settings.plugins.bambucam.bind_address">
+                        <option value="127.0.0.1">
+                            127.0.0.1 ({{ _("this machine only, safe") }})
+                        </option>
+                        <option value="0.0.0.0">0.0.0.0 ({{ _("whole network") }})</option>
+                    </select>
+                    <div class="alert alert-warning"
+                         data-bind="visible: settings.plugins.bambucam.bind_address() === '0.0.0.0'">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        {{ _("The stream server has no authentication. With 0.0.0.0 anyone on your network can watch the camera. Required for the live view in the browser unless you set a stream URL override below.") }}
+                    </div>
+                    <span class="help-block">{{ _("With 127.0.0.1 snapshots and timelapse work, but the browser live view does not (unless you use a reverse proxy and a stream URL override).") }}</span>
+                    <div style="display: flex; gap: 5px; margin-top: 5px;">
+                        <input type="text"
+                               style="flex: 1;
+                                      margin-bottom: 0"
+                               readonly
+                               data-bind="value: snapshotUrlDisplay" />
+                        <button class="btn"
+                                type="button"
+                                title="{{ _('Copy snapshot URL') }}"
+                                data-bind="click: copySnapshotUrl">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                    <div style="display: flex; gap: 5px; margin-top: 5px;">
+                        <input type="text"
+                               style="flex: 1;
+                                      margin-bottom: 0"
+                               readonly
+                               data-bind="value: streamUrlDisplay" />
+                        <button class="btn"
+                                type="button"
+                                title="{{ _('Copy stream URL') }}"
+                                data-bind="click: copyStreamUrl">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">{{ _("Stream URL override") }}</label>
+                <div class="controls">
+                    <input type="text"
+                           class="input-block-level"
+                           data-bind="value: settings.plugins.bambucam.stream_url_override"
+                           placeholder="https://my.proxy/webcam/?stream" />
+                    <span class="help-block">{{ _("Optional. Use this if the stream is served through a reverse proxy. Leave empty to use the port above directly.") }}</span>
+                </div>
+            </div>
+            <h4>{{ _("Status") }}</h4>
+            <div class="control-group">
+                <div class="controls">
+                    <p>
+                        <span class="label label-success" data-bind="visible: daemonRunning()">{{ _("Running") }}</span>
+                        <span class="label label-important" data-bind="visible: !daemonRunning()">{{ _("Stopped") }}</span>
+                        <span data-bind="visible: daemonRunning()">
+                            PID <span data-bind="text: daemonPid"></span>,
+                            <span data-bind="text: encodeFps"></span> FPS,
+                            <span data-bind="text: sessionCount"></span> {{ _("viewer(s)") }}
+                        </span>
+                    </p>
+                    <p class="text-error" data-bind="visible: lastError(), text: lastError"></p>
+                    <button class="btn"
+                            data-bind="click: restartDaemon, visible: loginState.isAdmin">
+                        <i class="fas fa-sync"></i> {{ _("Restart stream server") }}
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- ── Tab 2: Image & Advanced ───────────────────────────────────── -->
+        <div class="tab-pane" id="bambucam_tab_advanced">
+            <h4>{{ _("Resolution") }}</h4>
+            <div class="control-group">
+                <label class="control-label">{{ _("Width") }}</label>
+                <div class="controls">
+                    <input type="number"
+                           min="1"
+                           class="input-small"
+                           data-bind="value: settings.plugins.bambucam.width" />
+                    <span class="help-block">{{ _("Informational only; frames arrive as-is from the printer. Default 1920.") }}</span>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">{{ _("Height") }}</label>
+                <div class="controls">
+                    <input type="number"
+                           min="1"
+                           class="input-small"
+                           data-bind="value: settings.plugins.bambucam.height" />
+                    <span class="help-block">{{ _("Informational only; frames arrive as-is from the printer. Default 1080.") }}</span>
+                </div>
+            </div>
+            <h4>{{ _("Image") }}</h4>
+            <div class="control-group">
+                <label class="control-label">{{ _("Rotation (degrees)") }}</label>
+                <div class="controls">
+                    <input type="number"
+                           min="-1"
+                           max="359"
+                           class="input-small"
+                           data-bind="value: settings.plugins.bambucam.rotate" />
+                    <span class="help-block">{{ _("1-359 degrees, -1 disables rotation.") }}</span>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">{{ _("Capture pause (seconds)") }}</label>
+                <div class="controls">
+                    <input type="number"
+                           min="0"
+                           step="0.1"
+                           class="input-small"
+                           data-bind="value: settings.plugins.bambucam.encodewait" />
+                    <span class="help-block">{{ _("Pause between captured frames (--encodewait). Default 0.5.") }}</span>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="controls">
+                    <label class="checkbox">
+                        <input type="checkbox"
+                               data-bind="checked: settings.plugins.bambucam.flashred" />
+                        {{ _("Show activity dot (red dot every other frame)") }}
+                    </label>
+                    <label class="checkbox">
+                        <input type="checkbox"
+                               data-bind="checked: settings.plugins.bambucam.showfps" />
+                        {{ _("Show FPS watermark (costs CPU)") }}
+                    </label>
+                </div>
+            </div>
+            <h4>{{ _("Daemon") }}</h4>
+            <div class="control-group">
+                <div class="controls">
+                    <label class="checkbox">
+                        <input type="checkbox"
+                               data-bind="checked: settings.plugins.bambucam.autorestart" />
+                        {{ _("Automatically restart the stream server after crashes") }}
+                    </label>
+                    <label class="checkbox">
+                        <input type="checkbox"
+                               data-bind="checked: settings.plugins.bambucam.loghttp" />
+                        {{ _("Log HTTP requests of the stream server (debug)") }}
+                    </label>
+                </div>
+            </div>
+            <h4>{{ _("Diagnostics") }}</h4>
+            <div class="control-group">
+                <div class="controls">
+                    <button class="btn"
+                            type="button"
+                            data-bind="click: fetchInfo, enable: !fetchingInfo()">
+                        <i class="fas fa-info-circle"></i> {{ _("Query stream server (/?info)") }}
+                    </button>
+                    <span data-bind="visible: fetchingInfo()"><i class="fas fa-spinner fa-spin"></i></span>
+                    <span class="text-error" data-bind="visible: infoError(), text: infoError"></span>
+                    <span class="help-block">{{ _("Fetches live stats from the local stream server (the access code is never returned). The server must be running.") }}</span>
+                    <pre style="margin-top: 5px;
+                                max-height: 250px;
+                                overflow: auto"
+                         data-bind="visible: infoText(), text: infoText"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+    <p>
+        <small>
+            {{ _("Powered by") }} <a href="https://github.com/disconn3ct/webcamd-bambu"
+    target="_blank"
+    rel="noreferrer">webcamd-bambu</a> (GPL-3.0)
+            {{ _("by Igor Maculan, Christopher RYU, Shell Shrader and disconn3ct.") }}
+        </small>
+    </p>
+</form>

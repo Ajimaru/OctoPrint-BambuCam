@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="BambuCam plugin icon">
+  <title>BambuCam</title>
+  <defs>
+    <radialGradient id="lens-grad" cx="40%" cy="38%" r="55%">
+      <stop offset="0%" stop-color="#60a0e0"/>
+      <stop offset="60%" stop-color="#1a5fa8"/>
+      <stop offset="100%" stop-color="#0b2f5c"/>
+    </radialGradient>
+    <linearGradient id="bamboo-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4a9a2f"/>
+      <stop offset="100%" stop-color="#2d6e1a"/>
+    </linearGradient>
+    <linearGradient id="body-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3a3a3a"/>
+      <stop offset="100%" stop-color="#1a1a1a"/>
+    </linearGradient>
+    <filter id="lens-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Bamboo stalks (left side) -->
+  <!-- Stalk 1 -->
+  <rect x="6" y="8" width="7" height="48" rx="3.5" fill="url(#bamboo-grad)"/>
+  <!-- Node segments -->
+  <rect x="5.5" y="18" width="8" height="2.5" rx="1.25" fill="#2d6e1a"/>
+  <rect x="5.5" y="30" width="8" height="2.5" rx="1.25" fill="#2d6e1a"/>
+  <rect x="5.5" y="42" width="8" height="2.5" rx="1.25" fill="#2d6e1a"/>
+  <!-- Stalk 2 (shorter, offset) -->
+  <rect x="15" y="14" width="6" height="40" rx="3" fill="url(#bamboo-grad)" opacity="0.85"/>
+  <rect x="14.5" y="24" width="7" height="2" rx="1" fill="#2d6e1a"/>
+  <rect x="14.5" y="36" width="7" height="2" rx="1" fill="#2d6e1a"/>
+  <rect x="14.5" y="47" width="7" height="2" rx="1" fill="#2d6e1a"/>
+  <!-- Leaves -->
+  <ellipse cx="9.5" cy="10" rx="5" ry="2" fill="#5abf38" transform="rotate(-30 9.5 10)"/>
+  <ellipse cx="4" cy="15" rx="4" ry="1.8" fill="#4a9a2f" transform="rotate(20 4 15)"/>
+  <ellipse cx="17" cy="16" rx="4.5" ry="1.8" fill="#5abf38" transform="rotate(-20 17 16)"/>
+
+  <!-- Camera body -->
+  <rect x="24" y="20" width="36" height="26" rx="4" fill="url(#body-grad)"/>
+  <!-- Viewfinder hump -->
+  <rect x="29" y="15" width="14" height="7" rx="3" fill="#2a2a2a"/>
+  <!-- Record light -->
+  <circle cx="55" cy="24" r="2" fill="#e03030"/>
+
+  <!-- Lens barrel -->
+  <circle cx="40" cy="33" r="11" fill="#222"/>
+  <circle cx="40" cy="33" r="9" fill="url(#lens-grad)" filter="url(#lens-glow)"/>
+  <!-- Lens reflection highlight -->
+  <ellipse cx="36.5" cy="29.5" rx="2.8" ry="1.8" fill="white" opacity="0.22" transform="rotate(-30 36.5 29.5)"/>
+  <circle cx="40" cy="33" r="3.5" fill="#0b2f5c" opacity="0.6"/>
+
+  <!-- Grip ridges -->
+  <rect x="55" y="26" width="2" height="14" rx="1" fill="#444"/>
+  <rect x="58" y="28" width="1.5" height="10" rx="0.75" fill="#444"/>
+
+  <!-- "BC" badge -->
+  <rect x="25" y="37" width="10" height="7" rx="1.5" fill="#1a5fa8" opacity="0.9"/>
+  <text x="30" y="43.5" font-family="monospace" font-size="5.5" font-weight="bold" fill="white" text-anchor="middle">BC</text>
+</svg>

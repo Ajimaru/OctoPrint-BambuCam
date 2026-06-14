@@ -1,0 +1,7 @@
+include README.md
+recursive-include octoprint_bambucam/templates *
+recursive-include octoprint_bambucam/translations *
+recursive-include octoprint_bambucam/static *
+recursive-include octoprint_bambucam/vendor *
+global-exclude *.py[cod]
+global-exclude __pycache__

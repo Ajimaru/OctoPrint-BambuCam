@@ -1,0 +1,14 @@
+changelog:
+  categories:
+    - title: "New Features"
+      labels: ["enhancement", "feature"]
+    - title: "Bug Fixes"
+      labels: ["bug", "fix"]
+    - title: "Security"
+      labels: ["security"]
+    - title: "Documentation"
+      labels: ["documentation"]
+    - title: "CI / Tooling"
+      labels: ["ci", "tooling", "chore"]
+  exclude:
+    labels: ["skip-changelog"]

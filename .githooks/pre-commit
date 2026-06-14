@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+
+# If running on native Windows, re-exec this hook under Git Bash if available.
+# This is idempotent: if already running under Bash it does nothing.
+if cd "$(dirname "$0")" >/dev/null 2>&1; then
+    _SCRIPT_DIR_HINT="$(pwd)"
+else
+    _SCRIPT_DIR_HINT="$(dirname "$0")"
+fi
+
+if cd "$_SCRIPT_DIR_HINT/.." >/dev/null 2>&1; then
+    REPO_ROOT="$(pwd)"
+else
+    REPO_ROOT="$_SCRIPT_DIR_HINT"
+fi
+# Primary wrapper: .development/win-bash-wrapper.sh (toolkit location).
+# Fallback: scripts/win-bash-wrapper.sh (legacy / standalone repo layout).
+WRAPPER="$REPO_ROOT/.development/win-bash-wrapper.sh"
+if [ ! -x "$WRAPPER" ]; then
+    WRAPPER="$REPO_ROOT/scripts/win-bash-wrapper.sh"
+fi
+if [ -z "${BASH_VERSION-}" ]; then
+    if [ -x "$WRAPPER" ]; then
+        exec "$WRAPPER" "$0" "$@"
+    elif command -v bash >/dev/null 2>&1; then
+        exec bash "$0" "$@"
+    fi
+fi
+
+# Description: Wrapper to run pre-commit hooks from the repository virtualenv.
+# Behavior:
+#  - Attempts to execute `./.venv/bin/pre-commit` to ensure hooks run inside the project's venv.
+#  - Validates that the venv Python meets the minimum required version (Python 3.9+).
+#  - Optionally runs `pre-commit autoupdate` once per 24h when `PRECOMMIT_AUTOUPDATE=1`.
+# Usage:
+#  - Installed as a git hook via `core.hooksPath` and invoked automatically by Git.
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$REPO_ROOT"
+
+# --- Logging setup -------------------------------------------------
+# Create per-attempt log files in .logs and tee all output there
+LOG_DIR="$REPO_ROOT/.logs"
+mkdir -p "$LOG_DIR"
+LOG_PREFIX="pre-commit"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+PID=$$
+LOGFILE="$LOG_DIR/${LOG_PREFIX}-${TIMESTAMP}-${PID}.log"
+touch "$LOGFILE" || true
+# Keep a symlink to the latest run for convenience
+ln -f -s "$(basename "$LOGFILE")" "$LOG_DIR/${LOG_PREFIX}-latest.log" 2>/dev/null || true
+
+# Ensure we always write an END marker to the logfile and terminal on exit
+trap 'echo "===== $LOG_PREFIX END: $(date -u +"%Y-%m-%dT%H:%M:%SZ") (pid=$PID) ====="' EXIT
+
+# Redirect all stdout/stderr for this hook to both the logfile and the hook's stdout/stderr
+# Determine command to strip ANSI escape sequences when writing logs.
+# Prefer perl, fall back to sed with an escape byte pattern, otherwise use cat.
+if command -v perl >/dev/null 2>&1; then
+    # shellcheck disable=SC2329
+    strip_to_log_perl() { perl -pe 's/\e\[[0-9;]*[mK]//g' >>"$LOGFILE"; }
+    STRIP_FUNC=strip_to_log_perl
+elif command -v sed >/dev/null 2>&1; then
+    # Use $'..' to allow \x1b escape expansion for portability.
+    # shellcheck disable=SC2329
+    strip_to_log_sed() { sed -E -e $'s/\x1b\[[0-9;]*[mK]//g' >>"$LOGFILE"; }
+    STRIP_FUNC=strip_to_log_sed
+else
+    # shellcheck disable=SC2329
+    strip_to_log_cat() { cat >>"$LOGFILE"; }
+    STRIP_FUNC=strip_to_log_cat
+fi
+
+# Redirect all stdout/stderr for this hook to both the logfile and the hook's stdout/stderr
+exec > >(tee >($STRIP_FUNC)) 2> >(tee >($STRIP_FUNC) >&2)
+# Log header
+echo "===== $LOG_PREFIX START: $(date -u +"%Y-%m-%dT%H:%M:%SZ") (pid=$PID) ====="
+# -------------------------------------------------------------------
+
+python_meets_minimum() {
+    local python_bin="$1"
+    "$python_bin" -c 'import sys; sys.exit(0 if sys.version_info[:2] >= (3, 9) else 1)' >/dev/null 2>&1
+}
+
+run_pre_commit_from_venv() {
+    local venv_dir="$1"
+    local python_bin="$venv_dir/bin/python"
+    local pre_commit_bin="$venv_dir/bin/pre-commit"
+
+    if [[ ! -x "$pre_commit_bin" || ! -x "$python_bin" ]]; then
+        return 1
+    fi
+
+    if ! python_meets_minimum "$python_bin"; then
+        echo "ERROR: $python_bin is < 3.9; pre-commit hooks require Python 3.9+" >&2
+        return 2
+    fi
+
+    # Run pre-commit and capture exit code so we can produce a concise summary
+    "$pre_commit_bin" run --hook-stage pre-commit --show-diff-on-failure --color=always
+    local rc=$?
+
+    # produce short summary to stderr (counts of Passed/Failed in the stripped logfile)
+    if [[ -f "$LOGFILE" ]]; then
+        local passed
+        local failed
+        passed=$(grep -o "Passed" "$LOGFILE" | wc -l || true)
+        failed=$(grep -o "Failed" "$LOGFILE" | wc -l || true)
+        echo "PRE-COMMIT SUMMARY: Passed=$passed Failed=$failed (log: $LOGFILE)" >&2
+    fi
+
+    return "$rc"
+}
+
+maybe_run_autoupdate() {
+    # If PRECOMMIT_AUTOUPDATE=1 is set in the environment, run autoupdate
+    # at most once per 24 hours. This avoids network calls on every commit.
+    local marker_file
+    marker_file="$(git rev-parse --git-common-dir 2>/dev/null)/pre-commit-autoupdate"
+
+    if [[ "${PRECOMMIT_AUTOUPDATE:-0}" != "1" ]]; then
+        return 0
+    fi
+
+    local now
+    now=$(date +%s)
+    if [[ -f "$marker_file" ]]; then
+        local last
+        last=$(cat "$marker_file" 2>/dev/null || echo 0)
+        if (( now - last < 86400 )); then
+            return 0
+        fi
+    fi
+
+    if [[ -x "./.venv/bin/pre-commit" ]]; then
+        echo "PRECOMMIT_AUTOUPDATE=1: running 'pre-commit autoupdate'..."
+        # Run autoupdate but do not auto-stage or commit changes; user must review.
+        ./.venv/bin/pre-commit autoupdate || true
+        date +%s > "$marker_file" || true
+    else
+        echo "PRECOMMIT_AUTOUPDATE=1 but ./.venv/bin/pre-commit not available" >&2
+    fi
+}
+
+# Try running autoupdate (no-op unless PRECOMMIT_AUTOUPDATE=1)
+maybe_run_autoupdate
+
+rc=0
+run_pre_commit_from_venv "./.venv" || rc=$?
+if [[ $rc -eq 0 ]]; then
+    exit 0
+else
+    if [[ -x "./.venv/bin/pre-commit" ]]; then
+        echo "ERROR: pre-commit ran but exited with code $rc. See log: $LOGFILE" >&2
+        exit $rc
+        else
+                cat <<'MSG' >&2
+ERROR: pre-commit not available in ./.venv.
+
+This repository uses `git config core.hooksPath .githooks`, so DO NOT run
+`pre-commit install` (it will fail by design). Instead, install pre-commit
+into the project's virtual environment:
+
+    Unix / macOS (bash/zsh):
+        source ./.venv/bin/activate
+        python -m pip install --upgrade pip
+        python -m pip install pre-commit
+
+    Windows (PowerShell):
+        .\.venv\Scripts\Activate.ps1
+        python -m pip install --upgrade pip
+        python -m pip install pre-commit
+
+Then ensure the hooks path is wired to this repo's wrapper:
+
+        git config core.hooksPath .githooks
+
+After installing, retry your commit. The wrapper will pick up
+./.venv/bin/pre-commit automatically.
+MSG
+                exit 1
+        fi
+fi

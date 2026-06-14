@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+
+# If running on native Windows, re-exec this hook under Git Bash if available.
+# This is idempotent: if already running under Bash it does nothing.
+if cd "$(dirname "$0")" >/dev/null 2>&1; then
+  _SCRIPT_DIR_HINT="$(pwd)"
+else
+  _SCRIPT_DIR_HINT="$(dirname "$0")"
+fi
+if cd "$_SCRIPT_DIR_HINT/.." >/dev/null 2>&1; then
+  REPO_ROOT="$(pwd)"
+else
+  # Fallback: try dirname to get parent, or use hint as last resort
+  REPO_ROOT="$(dirname "$_SCRIPT_DIR_HINT")"
+fi
+# Primary wrapper: .development/win-bash-wrapper.sh (toolkit location).
+# Fallback: scripts/win-bash-wrapper.sh (legacy / standalone repo layout).
+WRAPPER="$REPO_ROOT/.development/win-bash-wrapper.sh"
+if [ ! -x "$WRAPPER" ]; then
+  WRAPPER="$REPO_ROOT/scripts/win-bash-wrapper.sh"
+fi
+if [ -z "${BASH_VERSION-}" ]; then
+  if [ -x "$WRAPPER" ]; then
+    exec "$WRAPPER" "$0" "$@"
+  elif command -v bash >/dev/null 2>&1; then
+    exec bash "$0" "$@"
+  fi
+fi
+
+# Description: Minimal git post-commit hook placeholder.
+# Behavior:
+#  - Ensures the script is running as a Git hook (GIT_DIR set) and that the repo root
+#    can be determined; otherwise exits quietly to avoid blocking commits.
+#  - Currently a no-op by default but keeps a repository-local hook file available
+#    for future post-commit actions such as building distribution artifacts.
+# Usage:
+#  - Placed in `.githooks/post-commit` and activated via `git config core.hooksPath .githooks`.
+
+set -euo pipefail
+
+# Install EXIT trap to wait on all background processes
+# This ensures that tee/perl process substitutions finish flushing logs before script termination
+trap 'wait' EXIT
+
+if [[ -z "${GIT_DIR-}" ]]; then
+  # Not running as a Git hook, skip silently.
+  exit 0
+fi
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -z "$repo_root" ]]; then
+  exit 0
+fi
+
+cd "$repo_root"
+
+# --- Logging setup -------------------------------------------------
+# Create per-commit log files in .logs and tee all output there
+LOG_DIR="$repo_root/.logs"
+mkdir -p "$LOG_DIR"
+LOG_PREFIX="post-commit"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+PID=$$
+LOGFILE="$LOG_DIR/${LOG_PREFIX}-${TIMESTAMP}-${PID}.log"
+touch "$LOGFILE" || true
+ln -f -s "$(basename "$LOGFILE")" "$LOG_DIR/${LOG_PREFIX}-latest.log" 2>/dev/null || true
+
+# Redirect all stdout/stderr for this hook to both the logfile and the hook's stdout/stderr
+# Terminal receives original (colored) output; logfile gets ANSI-stripped copy.
+exec > >(tee >(perl -pe 's/\e\[[0-9;]*[mK]//g' >>"$LOGFILE")) 2> >(tee >(perl -pe 's/\e\[[0-9;]*[mK]//g' >>"$LOGFILE") >&2)
+echo "===== $LOG_PREFIX START: $(date -u +%Y-%m-%dT%H:%M:%SZ) (pid=$PID) ====="
+# -------------------------------------------------------------------
+
+# Execute any drop-in scripts in .githooks/post-commit.d if present
+POST_D_DIR="$repo_root/.githooks/post-commit.d"
+if [[ -d "$POST_D_DIR" ]]; then
+  echo "Running post-commit.d scripts from $POST_D_DIR"
+  for f in "$POST_D_DIR"/*.sh; do
+    if [[ -f "$f" && -x "$f" ]]; then
+      echo "--- Running: $f ---"
+      "$f" || { rc=$?; echo "Script failed: $f (exit $rc)"; }
+    elif [[ -f "$f" ]]; then
+      echo "--- Running (bash): $f ---"
+      bash -- "$f" || { rc=$?; echo "Script failed: $f (exit $rc)"; }
+    fi
+  done
+else
+  echo "No post-commit.d scripts to run"
+fi
+
+echo "===== $LOG_PREFIX END: $(date --iso-8601=seconds) (pid=$PID) ====="
+
+# Produce concise summary for editors/CI on stderr
+if [[ -f "$LOGFILE" ]]; then
+  passed=$(grep -o "Passed" "$LOGFILE" | wc -l || true)
+  failed=$(grep -o "Failed" "$LOGFILE" | wc -l || true)
+  echo "POST-COMMIT SUMMARY: Passed=$passed Failed=$failed (log: $LOGFILE)" >&2
+fi
+
+exit 0

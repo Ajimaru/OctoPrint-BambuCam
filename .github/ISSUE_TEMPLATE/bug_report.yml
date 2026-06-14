@@ -1,0 +1,112 @@
+name: Bug Report
+description: Something isn't working as expected
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: checkboxes
+    attributes:
+      label: Preflight checklist
+      description: Please confirm before submitting.
+      options:
+        - label: I am running the latest version of BambuCam.
+          required: true
+        - label: I have searched existing issues and this is not a duplicate.
+          required: true
+        - label: I have enabled debug logging for BambuCam (`Settings → Logging → octoprint.plugins.bambucam`).
+          required: true
+
+  - type: textarea
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      description: Step-by-step instructions to reproduce the behavior.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Actual behavior
+      description: What actually happened?
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: BambuCam version
+      placeholder: e.g. 0.1.0
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: OctoPrint version
+      placeholder: e.g. 1.10.3
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Printer model
+      placeholder: e.g. P1S, A1 mini
+    validations:
+      required: true
+
+  - type: dropdown
+    attributes:
+      label: Operating system (OctoPrint host)
+      options:
+        - Linux (Raspberry Pi OS / OctoPi)
+        - Linux (other)
+        - Windows
+        - macOS
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Browser
+      placeholder: e.g. Chrome 124, Firefox 126, Safari 17
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: OctoPrint systeminfo bundle
+      description: >
+        **Required.** Attach the systeminfo bundle (`Help → About OctoPrint →
+        System Information → Download as ZIP`). Drag & drop it into this field.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Relevant log output
+      description: Paste relevant lines from the BambuCam log or OctoPrint log. Wrap in triple backticks.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Screenshots, GCODEs, network diagrams — anything else that might help.
+    validations:
+      required: false

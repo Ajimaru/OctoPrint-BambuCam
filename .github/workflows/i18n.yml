@@ -1,0 +1,138 @@
+name: i18n
+
+on:
+  push:
+    branches: [main, dev]
+    tags: ["v*"]
+  pull_request:
+    branches: [dev]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  i18n:
+    name: i18n catalog check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load tool versions
+        run: |
+          if [ -f .development/versions.env ]; then
+            grep -vE '^\s*(#|$)' .development/versions.env >> "$GITHUB_ENV"
+          fi
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Create venv and install minimal i18n deps
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          # Babel must match the version the pre-commit hook and the OctoPrint
+          # venvs use, otherwise the regenerated POT differs purely by tooling
+          # and a locally-clean commit fails in CI. Pinned in versions.env.
+          python -m pip install setuptools \
+            "Babel==${BABEL_VERSION:-2.16.0}" \
+            "polib==${POLIB_VERSION:-1.2.0}"
+
+      - name: Verify catalogs are in sync with sources
+        run: |
+          . .venv/bin/activate
+          # Re-extract the POT using the EXACT same invocation as
+          # `task babel-extract` / .development/compile_translations.sh so the
+          # result is byte-for-byte comparable with what the pre-commit hook
+          # produces locally. babel.cfg already excludes the vendored
+          # webcam tree, so no extra --ignore-dirs is needed here.
+          ./.venv/bin/pybabel extract \
+            --mapping-file=babel.cfg \
+            --output-file=/tmp/messages.pot \
+            --msgid-bugs-address=i18n@octoprint.org \
+            --copyright-holder="The OctoPrint Project" \
+            .
+          # Compare the freshly extracted POT against the committed POT and the
+          # committed PO catalogs using the SAME normalized, content-only
+          # comparison the pre-commit hook uses (.githooks/check_translations_sync.sh):
+          # only msgid / msgctxt / msgstr matter. Volatile headers
+          # (POT-Creation-Date, Generated-By) and shifting "#: file:line"
+          # references are ignored, so a green local commit stays green in CI
+          # and the two never disagree.
+          python - <<'PY'
+          import sys
+          from pathlib import Path
+
+          import polib
+
+          def content(path):
+              """Sorted (msgctxt, msgid) keys of non-obsolete entries."""
+              po = polib.pofile(path)
+              return sorted((e.msgctxt or "", e.msgid) for e in po if not e.obsolete)
+
+          repo_pot = Path("translations/messages.pot")
+          if not repo_pot.exists():
+              print("Missing translations/messages.pot", file=sys.stderr)
+              sys.exit(1)
+
+          fresh = content("/tmp/messages.pot")
+          committed = content(str(repo_pot))
+
+          if fresh != committed:
+              fresh_set, committed_set = set(fresh), set(committed)
+              added = sorted(k for k in fresh_set - committed_set)
+              removed = sorted(k for k in committed_set - fresh_set)
+              print("translations/messages.pot is out of date.", file=sys.stderr)
+              for ctx, mid in added:
+                  print(f"  + missing from POT: {mid!r}"
+                        + (f" (ctx {ctx!r})" if ctx else ""), file=sys.stderr)
+              for ctx, mid in removed:
+                  print(f"  - stale in POT: {mid!r}"
+                        + (f" (ctx {ctx!r})" if ctx else ""), file=sys.stderr)
+              print("\nRun ./.development/compile_translations.sh and commit the result.",
+                    file=sys.stderr)
+              sys.exit(1)
+
+          # Every PO catalog must cover exactly the POT's msgids (no missing,
+          # no stale). This is what `pybabel update` guarantees and what the
+          # hook keeps in sync.
+          pot_keys = set(fresh)
+          failed = False
+          for po_path in sorted(Path("translations").glob("*/LC_MESSAGES/messages.po")):
+              po_keys = set(content(str(po_path)))
+              missing = pot_keys - po_keys
+              stale = po_keys - pot_keys
+              if missing or stale:
+                  failed = True
+                  print(f"{po_path} is out of sync with the POT:", file=sys.stderr)
+                  for ctx, mid in sorted(missing):
+                      print(f"  + not in catalog: {mid!r}", file=sys.stderr)
+                  for ctx, mid in sorted(stale):
+                      print(f"  - stale in catalog: {mid!r}", file=sys.stderr)
+          if failed:
+              print("\nRun ./.development/compile_translations.sh and commit the result.",
+                    file=sys.stderr)
+              sys.exit(1)
+
+          print("Catalogs are in sync with sources.")
+          PY
+
+      - name: Compile catalogs
+        run: |
+          . .venv/bin/activate
+          ./.venv/bin/pybabel compile -d translations
+          mkdir -p octoprint_bambucam/translations
+          if [ -n "$(find translations -maxdepth 2 -type f -name '*.mo' -print -quit 2>/dev/null)" ]; then
+            cp -a translations/* octoprint_bambucam/translations/
+          else
+            echo "Warning: translations/ has no compiled catalogs; skipping copy"
+          fi

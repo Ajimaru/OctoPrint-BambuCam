@@ -1,0 +1,13 @@
+#bambucam_webcam_container .bambucam_fixed_ratio {
+  width: 100%;
+}
+
+#bambucam_webcam_container #bambucam_stream {
+  width: 100%;
+  height: auto;
+}
+
+#bambucam_webcam_container .bambucam_nostream {
+  padding: 2em;
+  text-align: center;
+}

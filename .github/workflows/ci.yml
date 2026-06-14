@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [dev]
+
+jobs:
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install ShellCheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Install npm dependencies
+        run: npm install --no-save
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[develop]"
+          pip install pytest pytest-cov
+
+      - name: Run pre-commit hooks
+        run: |
+          pip install pre-commit
+          pre-commit run --all-files
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ --cov=octoprint_bambucam --cov-report=xml -v
+
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          fail_ci_if_error: false
+
+      - name: Upload coverage to Codacy
+        if: matrix.python-version == '3.12'
+        uses: codacy/codacy-coverage-reporter-action@v1
+        with:
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          coverage-reports: coverage.xml
+        continue-on-error: true
+
+  smoke:
+    name: Smoke test (OctoPrint ${{ matrix.octoprint }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        octoprint: ["1.10.0", "master"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install OctoPrint ${{ matrix.octoprint }}
+        run: |
+          python -m pip install --upgrade pip
+          if [ "${{ matrix.octoprint }}" = "master" ]; then
+            pip install "https://github.com/OctoPrint/OctoPrint/archive/master.zip"
+          else
+            pip install "OctoPrint==${{ matrix.octoprint }}"
+          fi
+          pip install -e .
+
+      - name: Verify plugin loads
+        run: |
+          python -c "import octoprint_bambucam; print('Plugin import OK')"

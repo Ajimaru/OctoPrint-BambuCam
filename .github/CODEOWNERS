@@ -1,0 +1,32 @@
+## Global owner
+
+* @Ajimaru
+
+## Core plugin
+
+octoprint_bambucam/__init__.py @Ajimaru
+octoprint_bambucam/daemon.py @Ajimaru
+octoprint_bambucam/_version.py @Ajimaru
+
+## Frontend
+
+octoprint_bambucam/static/ @Ajimaru
+octoprint_bambucam/templates/ @Ajimaru
+
+## Vendored upstream — changes here need extra scrutiny
+
+octoprint_bambucam/vendor/ @Ajimaru
+
+## Project / community docs
+
+README.md @Ajimaru
+CONTRIBUTING.md @Ajimaru
+SECURITY.md @Ajimaru
+CODE_OF_CONDUCT.md @Ajimaru
+AUTHORS.md @Ajimaru
+
+## Build & CI
+
+setup.py @Ajimaru
+pyproject.toml @Ajimaru
+.github/ @Ajimaru

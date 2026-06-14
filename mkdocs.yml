@@ -1,0 +1,95 @@
+site_name: OctoPrint-BambuCam (Developer Docs)
+site_description: >-
+  Live Bambu Lab camera stream integration for OctoPrint — developer and
+  API documentation.
+site_url: https://ajimaru.github.io/OctoPrint-BambuCam/
+repo_url: https://github.com/Ajimaru/OctoPrint-BambuCam
+repo_name: Ajimaru/OctoPrint-BambuCam
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  icon:
+    logo: material/camera
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.tabs.link
+    - search.highlight
+    - search.suggest
+  palette:
+    - scheme: default
+      primary: green
+      accent: green
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: green
+      accent: green
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [.]
+          options:
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            docstring_style: google
+            merge_init_into_class: true
+            separate_signature: true
+            show_signature_annotations: true
+            filters:
+              - "!^_"
+
+nav:
+  - Overview: index.md
+  - Getting started: getting-started.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Daemon supervisor: architecture/daemon.md
+      - Data flow: architecture/data-flow.md
+      - Settings: architecture/settings.md
+      - OctoPrint integration: architecture/octoprint-integration.md
+  - API:
+      - Python: api/python.md
+      - JavaScript: api/javascript.md
+  - Frontend:
+      - UI placements: frontend/ui-placements.md
+      - Internationalization: frontend/i18n.md
+  - Security: security.md
+  - Development:
+      - Contributing: development/contributing.md
+      - Testing: development/testing.md
+      - Building the docs: development/docs.md
+      - Release process: development/release-process.md
+  - Reference:
+      - Configuration: reference/configuration.md
+      - HTTP API: reference/http-api.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Ajimaru/OctoPrint-BambuCam

@@ -1,0 +1,20 @@
+<div id="bambucam_webcam_container">
+    <div class="bambucam_nostream" data-bind="visible: !streamLoaded()">
+        <p data-bind="visible: !streamError()">
+            <strong>{{ _("BambuCam stream loading...") }}</strong>
+        </p>
+        <div data-bind="visible: streamError()">
+            <p>
+                <strong>{{ _("BambuCam stream not available") }}</strong>
+            </p>
+            <p>
+                <small>{{ _("Check that BambuCam is enabled and configured (Settings > BambuCam). For the live view in the browser the bind address must be 0.0.0.0 or a stream URL override must be set.") }}</small>
+            </p>
+        </div>
+    </div>
+    <div class="bambucam_fixed_ratio" data-bind="visible: streamLoaded()">
+        <img id="bambucam_stream"
+             data-bind="event: { load: onStreamLoaded, error: onStreamErrored }"
+             alt="BambuCam" />
+    </div>
+</div>

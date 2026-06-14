@@ -1,0 +1,84 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "BambuCam"
+version = "0.0.2rc1+unknown"
+description = "Bambu Lab camera stream integration for OctoPrint"
+authors = [
+    {name = "Ajimaru", email = "ajimaru_gdr@pm.me"}
+]
+readme = {file = "README.md", content-type = "text/markdown"}
+dynamic = [
+    "license"
+]
+
+requires-python = ">=3.7, <4"
+
+# any additional requirements (besides OctoPrint) should be listed here
+dependencies = [
+    "OctoPrint>=1.10.0",
+    "Pillow",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+octoprint_bambucam = ["vendor/webcamd_bambu/*"]
+
+[tool.setuptools.packages.find]
+include = [
+    "octoprint_bambucam",
+    "octoprint_bambucam.*"
+]
+
+[project.entry-points."octoprint.plugin"]
+bambucam = "octoprint_bambucam"
+
+[project.urls]
+Homepage = "https://github.com/ajimaru/OctoPrint-BambuCam"
+
+[project.optional-dependencies]
+develop = [
+    "go-task-bin"
+]
+test = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-mock>=3.10",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=octoprint_bambucam --cov-report=term-missing --cov-fail-under=90"
+
+[tool.pylint.messages_control]
+# The daemon supervisor deliberately uses a few catch-all ``except Exception``
+# blocks (child-output log pump, the state-change callback into plugin code,
+# and the test_connection fallback) that must never let a background thread or
+# probe crash. Narrowing those would change runtime behaviour, so the check is
+# disabled project-wide rather than ignored inline.
+disable = [
+    "broad-exception-caught",
+]
+
+[tool.black]
+# Project-wide column limit is 80 (matches flake8 and isort below).
+line-length = 80
+
+[tool.ruff]
+line-length = 80
+
+[tool.isort]
+profile = "black"
+line_length = 80
+
+[tool.djlint]
+# Keep short style/anchor attributes on a single line: only wrap when a line
+# actually exceeds the limit. Without this, djLint splits compact tags that are
+# already well under 80 columns across multiple lines.
+profile = "jinja"
+max_line_length = 80
+format_attribute_template_tags = false

@@ -1,0 +1,33 @@
+
+
+#Ignore vscode AI rules
+.github/instructions/codacy.instructions.md
+
+# Plugin / Python
+.venv*/
+*.pyc
+BambuCam.egg-info
+*.swp
+.idea
+*.iml
+build/
+dist/
+*.egg*
+.DS_Store
+*.zip
+.ruff_cache/
+.coverage
+.pytest_cache/
+
+# Docs (MkDocs build output + Node deps for JSDoc generation)
+/site/
+node_modules/
+package-lock.json
+
+#Development
+.ideas/
+.vscode/
+.development/
+.logs/
+.cache/
+.codacy/
