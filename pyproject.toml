@@ -54,6 +54,48 @@ test = [
 testpaths = ["tests"]
 addopts = "--cov=octoprint_bambucam --cov-report=term-missing --cov-fail-under=90"
 
+# ---------------------------------------------------------------------------
+# Shared ignore set
+#
+# Every linter/formatter below is configured to skip the same paths that are
+# listed in ``.gitignore`` (build artifacts, virtualenvs, caches, tool dirs,
+# vendored/generated output). The tools do not share an ignore mechanism, so
+# the list is mirrored into each tool's native syntax here, in ``.flake8``,
+# ``.prettierignore``, ``.snyk``, ``.codacy.yml`` and ``eslint.config.mjs``.
+# When you change ``.gitignore``, update those in lockstep.
+# ---------------------------------------------------------------------------
+
+[tool.pylint.master]
+# Pylint (also run by Codacy) walks directories directly, so mirror the
+# .gitignore set here. ``ignore`` matches base names, ``ignore-paths`` matches
+# regex against the full path.
+ignore = [
+    ".venv",
+    ".idea",
+    ".ruff_cache",
+    ".pytest_cache",
+    ".ideas",
+    ".vscode",
+    ".development",
+    ".logs",
+    ".cache",
+    ".codacy",
+    "build",
+    "dist",
+    "site",
+    "node_modules",
+]
+ignore-paths = [
+    "^\\.venv.*/.*$",
+    "^.*\\.egg-info/.*$",
+    "^build/.*$",
+    "^dist/.*$",
+    "^site/.*$",
+    "^node_modules/.*$",
+    "^\\.development/.*$",
+    "^\\.codacy/.*$",
+]
+
 [tool.pylint.messages_control]
 # The daemon supervisor deliberately uses a few catch-all ``except Exception``
 # blocks (child-output log pump, the state-change callback into plugin code,
@@ -67,13 +109,71 @@ disable = [
 [tool.black]
 # Project-wide column limit is 80 (matches flake8 and isort below).
 line-length = 80
+# Black honours .gitignore for implicitly discovered files; extend-exclude
+# makes the same set explicit so it also holds when paths are passed directly.
+extend-exclude = '''
+/(
+    \.venv[^/]*
+  | \.idea
+  | \.ruff_cache
+  | \.pytest_cache
+  | \.ideas
+  | \.vscode
+  | \.development
+  | \.logs
+  | \.cache
+  | \.codacy
+  | build
+  | dist
+  | site
+  | node_modules
+  | BambuCam\.egg-info
+)/
+'''
 
 [tool.ruff]
 line-length = 80
+# Ruff already skips .gitignore entries by default; keep it explicit and add
+# the same set so direct file arguments are excluded too.
+respect-gitignore = true
+extend-exclude = [
+    ".venv*",
+    ".idea",
+    ".ruff_cache",
+    ".pytest_cache",
+    ".ideas",
+    ".vscode",
+    ".development",
+    ".logs",
+    ".cache",
+    ".codacy",
+    "build",
+    "dist",
+    "site",
+    "node_modules",
+    "*.egg-info",
+]
 
 [tool.isort]
 profile = "black"
 line_length = 80
+extend_skip_glob = [
+    ".venv*/*",
+    ".idea/*",
+    ".ruff_cache/*",
+    ".pytest_cache/*",
+    ".ideas/*",
+    ".vscode/*",
+    ".development/*",
+    ".logs/*",
+    ".cache/*",
+    ".codacy/*",
+    "build/*",
+    "dist/*",
+    "site/*",
+    "node_modules/*",
+    "*.egg-info/*",
+]
 
 [tool.djlint]
 # Keep short style/anchor attributes on a single line: only wrap when a line

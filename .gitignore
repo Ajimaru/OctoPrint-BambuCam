@@ -31,3 +31,11 @@ node_modules/
 .logs/
 .cache/
 .codacy/
+
+# Local-only tooling configs (not consumed by CI / pre-commit).
+# Editors and local tools read these directly; the GitHub workflows do not.
+.editorconfig
+.markdownlint.json
+.markdownlintignore
+.snyk
+pyrightconfig.json
