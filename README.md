@@ -203,18 +203,26 @@ systeminfo bundle when opening a bug report.
 
 ### 🧪 2. Code Quality & Formatting
 
-[![pre-commit][b-precommit]](https://pre-commit.com/)
+[![Code style: black][b-black]](https://github.com/psf/black)
+[![Imports: isort][b-isort]](https://pycqa.github.io/isort/)
 [![Prettier][b-prettier]](https://github.com/prettier/prettier)
+[![pre-commit][b-precommit]](https://pre-commit.com/)
 [![Codacy][b-codacy]](https://app.codacy.com/gh/Ajimaru/OctoPrint-BambuCam/dashboard)
 [![Coverage][b-coverage]](https://codecov.io/gh/Ajimaru/OctoPrint-BambuCam)
+[![Pylint Score][b-pylint]](https://www.pylint.org/)
 [![Bandit Security][b-sec]](https://bandit.readthedocs.io/en/latest/)
+[![Depfu][b-depfu]](https://depfu.com/)
 [![Known Vulnerabilities][b-snyk]](https://snyk.io/test/github/Ajimaru/OctoPrint-BambuCam)
 
-[b-precommit]: https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white
+[b-black]: https://img.shields.io/badge/code%20style-black-000000.svg
+[b-isort]: https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336
 [b-prettier]: https://img.shields.io/badge/code_style-prettier-ff69b4.svg
-[b-codacy]: https://app.codacy.com/project/badge/Grade/REPLACE_WITH_CODACY_ID
+[b-precommit]: https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white
+[b-codacy]: https://app.codacy.com/project/badge/Grade/75d9ec1b49a64a3aae3615e21e6ff2ce
 [b-coverage]: https://codecov.io/gh/Ajimaru/OctoPrint-BambuCam/graph/badge.svg?branch=main
+[b-pylint]: https://img.shields.io/badge/pylint-10.0-green.svg
 [b-sec]: https://img.shields.io/badge/bandit-security-green.svg
+[b-depfu]: https://badges.depfu.com/badges/7d0d03953a51f03e18a2eae2453d64f5/status.svg
 [b-snyk]: https://snyk.io/test/github/Ajimaru/OctoPrint-BambuCam/badge.svg
 
 ### 🔄 3. CI/CD & Release
@@ -259,6 +267,7 @@ systeminfo bundle when opening a bug report.
 
 ![Code Size][b-size]
 [![Security][b-secp]](https://github.com/Ajimaru/OctoPrint-BambuCam/blob/main/SECURITY.md)
+[![Snyk][b-snyks]](https://app.snyk.io)
 ![Languages Count][b-langc]
 ![Top Language][b-top]
 [![License][b-lic]](https://github.com/Ajimaru/OctoPrint-BambuCam/blob/main/LICENSE)
@@ -266,6 +275,7 @@ systeminfo bundle when opening a bug report.
 
 [b-size]: https://img.shields.io/github/languages/code-size/Ajimaru/OctoPrint-BambuCam
 [b-secp]: https://img.shields.io/badge/security-policy-blue
+[b-snyks]: https://img.shields.io/badge/security-snyk-blueviolet
 [b-langc]: https://img.shields.io/github/languages/count/Ajimaru/OctoPrint-BambuCam
 [b-top]: https://img.shields.io/github/languages/top/Ajimaru/OctoPrint-BambuCam
 [b-lic]: https://img.shields.io/github/license/Ajimaru/OctoPrint-BambuCam

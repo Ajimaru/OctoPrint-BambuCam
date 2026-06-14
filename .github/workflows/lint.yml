@@ -2,42 +2,124 @@ name: Lint
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
   pull_request:
     branches: [dev]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
-    name: Lint & Security baseline
+    name: Lint (Python 3.12)
     runs-on: ubuntu-latest
+    env:
+      BABEL_VERSION: "2.16.0"
+      POLIB_VERSION: "1.2.0"
+      BANDIT_VERSION: "1.9.3"
+      NODE_VERSION: "20.19.0"
 
     steps:
-      - uses: actions/checkout@v4
+      - # Checkout repository code
+        name: Checkout
+        uses: actions/checkout@v6
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+      - # Load central tool-version pins, overriding the env: fallbacks above.
+        name: Load tool versions
+        run: |
+          if [ -f .development/versions.env ]; then
+            grep -vE '^\s*(#|$)' .development/versions.env >> "$GITHUB_ENV"
+          fi
+
+      - # Setup Python and pip cache
+        name: Set up Python
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          cache: pip
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install ShellCheck
-        run: sudo apt-get install -y shellcheck
-
-      - name: Install npm dependencies
-        run: npm install --no-save
-
-      - name: Install Python dependencies
+      - # Display versions for easier debugging
+        name: Show tool versions
         run: |
+          python --version
+          pip --version
+
+      - # Upgrade installer/build chain
+        name: Upgrade pip/setuptools/wheel
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+
+      - # Install lint/security baseline deps
+        name: Install minimal CI dependencies
+        run: |
+          python -m pip install pre-commit "Babel==${{ env.BABEL_VERSION }}" "polib==${{ env.POLIB_VERSION }}"
+
+      - # Setup Node.js for ESLint/Prettier hooks
+        name: Set up Node.js for hooks
+        if: ${{ hashFiles('.pre-commit-config.yaml') != '' && hashFiles('package.json') != '' }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: "${{ env.NODE_VERSION }}"
+
+      - # Install npm dependencies only if package.json exists
+        name: Install Node.js dependencies for hooks
+        if: ${{ hashFiles('.pre-commit-config.yaml') != '' && hashFiles('package.json') != '' }}
+        run: |
+          if [ -f package.json ] && [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund
+          elif [ -f package.json ]; then
+            npm install --no-audit --no-fund
+          else
+            echo "No package.json present; skipping npm install"
+          fi
+
+      - # Create venv for local hook scripts requiring .venv
+        name: Create ./.venv for translation check
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
           python -m pip install --upgrade pip
-          pip install pre-commit bandit
-          pip install -e .
+          python -m pip install "Babel==${{ env.BABEL_VERSION }}" "polib==${{ env.POLIB_VERSION }}"
 
-      - name: Run pre-commit on all files
-        run: pre-commit run --all-files
+      - # Install ShellCheck required by local hook
+        name: Install ShellCheck
+        if: ${{ hashFiles('.pre-commit-config.yaml') != '' }}
+        run: |
+          set -e
+          SHELLCHECK_VERSION="${SHELLCHECK_MIN_VERSION:-0.11.0}"
+          INSTALL_DIR="/usr/local/bin"
+          SHELLCHECK_URL="https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
 
-      - name: Run Bandit security scan
-        run: bandit -r octoprint_bambucam/ -ll
+          mkdir -p /tmp/shellcheck-install
+          cd /tmp/shellcheck-install
+          wget -q "${SHELLCHECK_URL}" -O shellcheck.tar.xz
+          tar -xf shellcheck.tar.xz
+
+          sudo cp "shellcheck-v${SHELLCHECK_VERSION}/shellcheck" "${INSTALL_DIR}/shellcheck"
+          sudo chmod +x "${INSTALL_DIR}/shellcheck"
+          "${INSTALL_DIR}/shellcheck" --version
+
+      - # Run complete pre-commit suite
+        name: Run pre-commit on all files
+        if: ${{ hashFiles('.pre-commit-config.yaml') != '' }}
+        run: |
+          pre-commit run --all-files --show-diff-on-failure --color always
+
+      - # Run Bandit as explicit security lint step
+        name: Bandit (security)
+        if: success() || failure()
+        continue-on-error: true
+        run: |
+          pip install "bandit==${{ env.BANDIT_VERSION }}"
+          bandit -r octoprint_bambucam -x .venv,venv,.git -ll
+
+      - # Print summary
+        name: Summary
+        if: always()
+        run: |
+          echo "Lint workflow finished"

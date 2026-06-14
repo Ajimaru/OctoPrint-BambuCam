@@ -20,9 +20,9 @@ dist/
 .pytest_cache/
 
 # Docs (MkDocs build output + Node deps for JSDoc generation)
+# package-lock.json IS committed so `npm ci` is reproducible in CI.
 /site/
 node_modules/
-package-lock.json
 
 #Development
 .ideas/

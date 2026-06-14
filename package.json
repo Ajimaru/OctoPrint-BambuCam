@@ -1,0 +1,19 @@
+{
+  "name": "octoprint-bambucam",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Dev tooling (Prettier, ESLint, JSDoc) for the OctoPrint-BambuCam plugin frontend and docs. Not published.",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "lint": "eslint \"octoprint_bambucam/static/js/**/*.js\"",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "docs:js": "./scripts/generate-jsdocs.sh"
+  },
+  "devDependencies": {
+    "eslint": "10.3.0",
+    "globals": "17.6.0",
+    "jsdoc-to-markdown": "^9.1.1",
+    "prettier": "3.6.2"
+  }
+}
