@@ -1,262 +1,284 @@
-# German translations for PROJECT.
+# German translations for OctoPrint-BambuCam.
 # Copyright (C) 2026 The OctoPrint Project
-# This file is distributed under the same license as the PROJECT project.
-# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+# This file is distributed under the same license as the BambuCam project.
+# Ajimaru <ajimaru_gdr@pm.me>, 2026.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: PROJECT VERSION\n"
+"Project-Id-Version: BambuCam\n"
 "Report-Msgid-Bugs-To: i18n@octoprint.org\n"
-"POT-Creation-Date: 2026-06-14 13:07+0200\n"
-"PO-Revision-Date: 2026-06-12 21:15+0200\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language: de\n"
+"POT-Creation-Date: 2026-06-14 20:30+0200\n"
+"PO-Revision-Date: 2026-06-14 20:30+0200\n"
+"Last-Translator: Ajimaru <ajimaru_gdr@pm.me>\n"
 "Language-Team: de <LL@li.org>\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "Generated-By: Babel 2.16.0\n"
 
 #: octoprint_bambucam/static/js/BambuCam.js:231
 msgid "Stream server not reachable. Is it running?"
-msgstr ""
+msgstr "Stream-Server nicht erreichbar. Läuft er?"
 
 #: octoprint_bambucam/static/js/BambuCam.js:239
 msgid "Request failed."
-msgstr ""
+msgstr "Anfrage fehlgeschlagen."
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:2
 msgid "BambuCam"
-msgstr ""
+msgstr "BambuCam"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:8
 msgid "Enable BambuCam"
-msgstr ""
+msgstr "BambuCam aktivieren"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:14
 msgid "Connection"
-msgstr ""
+msgstr "Verbindung"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:18
 msgid "Image & Advanced"
-msgstr ""
+msgstr "Bild & Erweitert"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:25
 msgid "Printer connection"
-msgstr ""
+msgstr "Druckerverbindung"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:27
 msgid "Printer IP / hostname"
-msgstr ""
+msgstr "Drucker-IP / Hostname"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:33
 msgid ""
-"IP address of your Bambu Lab printer (P1/A1 series, LAN mode). The X1 "
-"series is not supported."
+"IP address of your Bambu Lab printer (P1/A1 series, LAN mode). The X1 series"
+" is not supported."
 msgstr ""
+"IP-Adresse deines Bambu-Lab-Druckers (P1-/A1-Serie, LAN-Modus). Die X1-Serie"
+" wird nicht unterstützt."
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:37
 msgid "Access code"
-msgstr ""
+msgstr "Zugangscode"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:43
 msgid "LAN access code, shown on the printer display under network settings."
 msgstr ""
+"LAN-Zugangscode, am Druckerdisplay unter den Netzwerkeinstellungen "
+"angezeigt."
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:49
 msgid "Test connection"
-msgstr ""
+msgstr "Verbindung testen"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:52
 msgid "Connection successful!"
-msgstr ""
+msgstr "Verbindung erfolgreich!"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:54
 msgid "Printer rejected the access code."
-msgstr ""
+msgstr "Drucker hat den Zugangscode abgelehnt."
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:56
 msgid "Printer is unreachable."
-msgstr ""
+msgstr "Drucker ist nicht erreichbar."
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:57
 msgid "Connection timed out."
-msgstr ""
+msgstr "Zeitüberschreitung bei der Verbindung."
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:58
 msgid "Connection failed."
-msgstr ""
+msgstr "Verbindung fehlgeschlagen."
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:61
 msgid "Stream server"
-msgstr ""
+msgstr "Stream-Server"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:63
 msgid "HTTP port"
-msgstr ""
+msgstr "HTTP-Port"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:70
 msgid "Port of the local MJPEG server started by this plugin."
-msgstr ""
+msgstr "Port des lokalen MJPEG-Servers, der von diesem Plugin gestartet wird."
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:74
 msgid "Bind address"
-msgstr ""
+msgstr "Bind-Adresse"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:78
 msgid "this machine only, safe"
-msgstr ""
+msgstr "nur dieser Rechner, sicher"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:80
 msgid "whole network"
-msgstr ""
+msgstr "gesamtes Netzwerk"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:85
 msgid ""
-"The stream server has no authentication. With 0.0.0.0 anyone on your "
-"network can watch the camera. Required for the live view in the browser "
-"unless you set a stream URL override below."
+"The stream server has no authentication. With 0.0.0.0 anyone on your network"
+" can watch the camera. Required for the live view in the browser unless you "
+"set a stream URL override below."
 msgstr ""
+"Der Stream-Server hat keine Authentifizierung. Mit 0.0.0.0 kann jeder in "
+"deinem Netzwerk die Kamera sehen. Für die Live-Ansicht im Browser "
+"erforderlich, sofern du unten keine abweichende Stream-URL angibst."
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:87
 msgid ""
-"With 127.0.0.1 snapshots and timelapse work, but the browser live view "
-"does not (unless you use a reverse proxy and a stream URL override)."
+"With 127.0.0.1 snapshots and timelapse work, but the browser live view does "
+"not (unless you use a reverse proxy and a stream URL override)."
 msgstr ""
+"Mit 127.0.0.1 funktionieren Schnappschüsse und Zeitraffer, die Live-Ansicht "
+"im Browser jedoch nicht (es sei denn, du verwendest einen Reverse-Proxy und "
+"eine abweichende Stream-URL)."
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:96
 msgid "Copy snapshot URL"
-msgstr ""
+msgstr "Schnappschuss-URL kopieren"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:109
 msgid "Copy stream URL"
-msgstr ""
+msgstr "Stream-URL kopieren"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:117
 msgid "Stream URL override"
-msgstr ""
+msgstr "Abweichende Stream-URL"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:123
 msgid ""
-"Optional. Use this if the stream is served through a reverse proxy. Leave"
-" empty to use the port above directly."
+"Optional. Use this if the stream is served through a reverse proxy. Leave "
+"empty to use the port above directly."
 msgstr ""
+"Optional. Verwende dies, wenn der Stream über einen Reverse-Proxy "
+"bereitgestellt wird. Leer lassen, um den Port oben direkt zu verwenden."
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:126
 msgid "Status"
-msgstr ""
+msgstr "Status"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:130
 msgid "Running"
-msgstr ""
+msgstr "Läuft"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:131
 msgid "Stopped"
-msgstr ""
+msgstr "Gestoppt"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:135
 msgid "viewer(s)"
-msgstr ""
+msgstr "Zuschauer"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:141
 msgid "Restart stream server"
-msgstr ""
+msgstr "Stream-Server neu starten"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:148
 msgid "Resolution"
-msgstr ""
+msgstr "Auflösung"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:150
 msgid "Width"
-msgstr ""
+msgstr "Breite"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:156
-msgid "Informational only; frames arrive as-is from the printer. Default 1920."
+msgid ""
+"Informational only; frames arrive as-is from the printer. Default 1920."
 msgstr ""
+"Nur zur Information; die Bilder kommen unverändert vom Drucker. Standard "
+"1920."
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:160
 msgid "Height"
-msgstr ""
+msgstr "Höhe"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:166
-msgid "Informational only; frames arrive as-is from the printer. Default 1080."
+msgid ""
+"Informational only; frames arrive as-is from the printer. Default 1080."
 msgstr ""
+"Nur zur Information; die Bilder kommen unverändert vom Drucker. Standard "
+"1080."
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:169
 msgid "Image"
-msgstr ""
+msgstr "Bild"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:171
 msgid "Rotation (degrees)"
-msgstr ""
+msgstr "Drehung (Grad)"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:178
 msgid "1-359 degrees, -1 disables rotation."
-msgstr ""
+msgstr "1-359 Grad, -1 deaktiviert die Drehung."
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:182
 msgid "Capture pause (seconds)"
-msgstr ""
+msgstr "Aufnahmepause (Sekunden)"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:189
 msgid "Pause between captured frames (--encodewait). Default 0.5."
-msgstr ""
+msgstr "Pause zwischen aufgenommenen Bildern (--encodewait). Standard 0.5."
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:197
 msgid "Show activity dot (red dot every other frame)"
-msgstr ""
+msgstr "Aktivitätspunkt anzeigen (roter Punkt bei jedem zweiten Bild)"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:202
 msgid "Show FPS watermark (costs CPU)"
-msgstr ""
+msgstr "FPS-Wasserzeichen anzeigen (kostet CPU)"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:206
 msgid "Daemon"
-msgstr ""
+msgstr "Daemon"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:212
 msgid "Automatically restart the stream server after crashes"
-msgstr ""
+msgstr "Stream-Server nach Abstürzen automatisch neu starten"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:217
 msgid "Log HTTP requests of the stream server (debug)"
-msgstr ""
+msgstr "HTTP-Anfragen des Stream-Servers protokollieren (Debug)"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:221
 msgid "Diagnostics"
-msgstr ""
+msgstr "Diagnose"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:227
 msgid "Query stream server (/?info)"
-msgstr ""
+msgstr "Stream-Server abfragen (/?info)"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:231
 msgid ""
-"Fetches live stats from the local stream server (the access code is never"
-" returned). The server must be running."
+"Fetches live stats from the local stream server (the access code is never "
+"returned). The server must be running."
 msgstr ""
+"Ruft Live-Statistiken vom lokalen Stream-Server ab (der Zugangscode wird nie"
+" zurückgegeben). Der Server muss laufen."
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:242
 msgid "Powered by"
-msgstr ""
+msgstr "Bereitgestellt durch"
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:245
 msgid "by Igor Maculan, Christopher RYU, Shell Shrader and disconn3ct."
-msgstr ""
+msgstr "von Igor Maculan, Christopher RYU, Shell Shrader und disconn3ct."
 
 #: octoprint_bambucam/templates/bambucam_webcam.jinja2:4
 msgid "BambuCam stream loading..."
-msgstr ""
+msgstr "BambuCam-Stream wird geladen..."
 
 #: octoprint_bambucam/templates/bambucam_webcam.jinja2:8
 msgid "BambuCam stream not available"
-msgstr ""
+msgstr "BambuCam-Stream nicht verfügbar"
 
 #: octoprint_bambucam/templates/bambucam_webcam.jinja2:11
 msgid ""
-"Check that BambuCam is enabled and configured (Settings > BambuCam). For "
-"the live view in the browser the bind address must be 0.0.0.0 or a stream"
-" URL override must be set."
+"Check that BambuCam is enabled and configured (Settings > BambuCam). For the"
+" live view in the browser the bind address must be 0.0.0.0 or a stream URL "
+"override must be set."
 msgstr ""
-
+"Stelle sicher, dass BambuCam aktiviert und konfiguriert ist (Einstellungen >"
+" BambuCam). Für die Live-Ansicht im Browser muss die Bind-Adresse 0.0.0.0 "
+"sein oder eine abweichende Stream-URL gesetzt werden."

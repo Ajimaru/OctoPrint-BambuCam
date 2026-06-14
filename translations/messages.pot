@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: i18n@octoprint.org\n"
-"POT-Creation-Date: 2026-06-14 13:07+0200\n"
+"POT-Creation-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -51,8 +51,8 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:33
 msgid ""
-"IP address of your Bambu Lab printer (P1/A1 series, LAN mode). The X1 "
-"series is not supported."
+"IP address of your Bambu Lab printer (P1/A1 series, LAN mode). The X1 series"
+" is not supported."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:37
@@ -113,15 +113,15 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:85
 msgid ""
-"The stream server has no authentication. With 0.0.0.0 anyone on your "
-"network can watch the camera. Required for the live view in the browser "
-"unless you set a stream URL override below."
+"The stream server has no authentication. With 0.0.0.0 anyone on your network"
+" can watch the camera. Required for the live view in the browser unless you "
+"set a stream URL override below."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:87
 msgid ""
-"With 127.0.0.1 snapshots and timelapse work, but the browser live view "
-"does not (unless you use a reverse proxy and a stream URL override)."
+"With 127.0.0.1 snapshots and timelapse work, but the browser live view does "
+"not (unless you use a reverse proxy and a stream URL override)."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:96
@@ -138,8 +138,8 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:123
 msgid ""
-"Optional. Use this if the stream is served through a reverse proxy. Leave"
-" empty to use the port above directly."
+"Optional. Use this if the stream is served through a reverse proxy. Leave "
+"empty to use the port above directly."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:126
@@ -171,7 +171,8 @@ msgid "Width"
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:156
-msgid "Informational only; frames arrive as-is from the printer. Default 1920."
+msgid ""
+"Informational only; frames arrive as-is from the printer. Default 1920."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:160
@@ -179,7 +180,8 @@ msgid "Height"
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:166
-msgid "Informational only; frames arrive as-is from the printer. Default 1080."
+msgid ""
+"Informational only; frames arrive as-is from the printer. Default 1080."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:169
@@ -232,8 +234,8 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:231
 msgid ""
-"Fetches live stats from the local stream server (the access code is never"
-" returned). The server must be running."
+"Fetches live stats from the local stream server (the access code is never "
+"returned). The server must be running."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:242
@@ -254,8 +256,7 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_webcam.jinja2:11
 msgid ""
-"Check that BambuCam is enabled and configured (Settings > BambuCam). For "
-"the live view in the browser the bind address must be 0.0.0.0 or a stream"
-" URL override must be set."
+"Check that BambuCam is enabled and configured (Settings > BambuCam). For the"
+" live view in the browser the bind address must be 0.0.0.0 or a stream URL "
+"override must be set."
 msgstr ""
-
