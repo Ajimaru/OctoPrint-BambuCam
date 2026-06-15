@@ -31,7 +31,10 @@ jobs:
       - name: Validate paths (prevent directory traversal)
         run: |
           for f in dist/*; do
-            realpath --relative-to="$(pwd)" "$f" | grep -qE '^\.' && { echo "Suspicious path: $f"; exit 1; }
+            rel="$(realpath --relative-to="$(pwd)" "$f")"
+            case "$rel" in
+              .*) echo "Suspicious path: $f ($rel)"; exit 1 ;;
+            esac
           done
 
       - name: Determine prerelease
