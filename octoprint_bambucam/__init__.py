@@ -365,7 +365,7 @@ __plugin_author__ = "Ajimaru"
 __plugin_url__ = "https://github.com/Ajimaru/OctoPrint-BambuCam"
 __plugin_description__ = "Bambu Lab camera stream integration for OctoPrint"
 __plugin_license__ = "AGPL-3.0-or-later"
-__plugin_pythoncompat__ = ">=3.7,<4"
+__plugin_pythoncompat__ = ">=3.9,<4"
 __plugin_implementation__ = BambucamPlugin()
 __plugin_hooks__ = {
     "octoprint.plugin.softwareupdate.check_config": (
