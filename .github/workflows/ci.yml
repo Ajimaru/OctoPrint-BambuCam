@@ -55,9 +55,14 @@ jobs:
             run-build: false
 
     steps:
-      - # Checkout repository code
+      - # Checkout repository code. The coverage variant needs full history so
+        # the Codacy reporter can match coverage paths against git files
+        # (a shallow checkout triggers its "Report files will not be matched"
+        # JGit warning); other variants stay shallow for speed.
         name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: ${{ matrix.run-coverage && 0 || 1 }}
 
       - # Load central tool-version pins, overriding the env: fallbacks above.
         name: Load tool versions
