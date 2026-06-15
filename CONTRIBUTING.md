@@ -63,6 +63,28 @@ pre-commit run --all-files
 - Add a `CHANGELOG.md` entry under the _Unreleased_ section.
 - Write clear commit messages (imperative, ≤ 72 chars subject line).
 
+## Branching and merging
+
+- `main` is the protected release branch; `dev` is the integration branch.
+  Open pull requests **from `dev` into `main`** (or from a short-lived
+  feature branch).
+- PRs are merged with **Rebase and merge** — this is the only method enabled
+  on the repository. Squash and merge-commit are disabled on purpose: squash
+  rewrites the branch into a single new commit, which makes `dev` diverge from
+  `main` and every subsequent PR show a phantom conflict.
+- Because rebase merging replays your commits onto `main` unchanged, `dev`
+  stays a direct ancestor of `main`. After a PR is merged, sync `dev` with a
+  plain fast-forward — no reset or force-push needed:
+
+  ```bash
+  git checkout dev
+  git pull --ff-only origin main
+  git push origin dev
+  ```
+
+- `main` requires a linear history, so keep `dev` rebased on `main`
+  (`git rebase origin/main`) rather than merging `main` into `dev`.
+
 ## Licensing
 
 By contributing, you agree that your contribution will be licensed under the
