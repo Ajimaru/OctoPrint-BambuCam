@@ -1,4 +1,0 @@
-# GitHub-specific files that use a non-Markdown comment syntax (#).
-# Markdownlint would otherwise mistake the leading "#" lines for headings.
-.github/CODEOWNERS
-octoprint_bambucam/vendor/webcamd_bambu/LICENSE

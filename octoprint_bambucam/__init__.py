@@ -17,6 +17,7 @@ from octoprint.access.permissions import Permissions
 from octoprint.schema.webcam import RatioEnum, Webcam, WebcamCompatibility
 from octoprint.webcams import WebcamNotAbleToTakeSnapshotException
 
+from ._version import VERSION as _PLUGIN_VERSION
 from .daemon import WebcamdManager
 
 if TYPE_CHECKING:
@@ -30,6 +31,7 @@ DAEMON_SETTINGS = (
     "access_code",
     "port",
     "bind_address",
+    "override_resolution",
     "width",
     "height",
     "rotate",
@@ -113,7 +115,9 @@ class BambucamPlugin(
                 "BambuCam is not configured yet, not starting webcamd"
             )
             return
-        assert self._manager is not None  # set in initialize()
+        if self._manager is None:  # set in initialize()
+            self._logger.error("webcamd manager not initialized")
+            return
         ok, error = self._manager.start(self._daemon_config())
         if not ok:
             self._logger.error("could not start webcamd: %s", error)
@@ -134,6 +138,9 @@ class BambucamPlugin(
             "port": 8181,
             "bind_address": "127.0.0.1",
             "stream_url_override": "",
+            # The printer dictates the frame size; width/height are only sent to
+            # webcamd when the user explicitly overrides them (off by default).
+            "override_resolution": False,
             "width": 1920,
             "height": 1080,
             "rotate": -1,
@@ -157,7 +164,9 @@ class BambucamPlugin(
         if old == new:
             return result
 
-        assert self._manager is not None  # set in initialize()
+        if self._manager is None:  # set in initialize()
+            self._logger.error("webcamd manager not initialized")
+            return result
         if self._settings.get_boolean(["enabled"]):
             self._logger.info(
                 "daemon-relevant settings changed, restarting webcamd"
@@ -242,7 +251,8 @@ class BambucamPlugin(
     def on_api_get(self, request) -> flask.Response:
         if not Permissions.SETTINGS.can():
             flask.abort(403)
-        assert self._manager is not None  # set in initialize()
+        if self._manager is None:  # set in initialize()
+            flask.abort(500)
         status = self._manager.status()
         status["stream_url"] = self._stream_url()
         return flask.jsonify(status)
@@ -250,7 +260,8 @@ class BambucamPlugin(
     def on_api_command(self, command, data) -> Optional[flask.Response]:
         # fetch_info only reads (and the password is already redacted by the
         # vendored webcam.py), so SETTINGS is enough; the rest needs ADMIN.
-        assert self._manager is not None  # set in initialize()
+        if self._manager is None:  # set in initialize()
+            flask.abort(500)
         if command == "fetch_info":
             if not Permissions.SETTINGS.can():
                 flask.abort(403)
@@ -310,6 +321,9 @@ class BambucamPlugin(
             "access_code": self._settings.get(["access_code"]),
             "port": self._settings.get_int(["port"]),
             "bind_address": self._settings.get(["bind_address"]),
+            "override_resolution": self._settings.get_boolean(
+                ["override_resolution"]
+            ),
             "width": self._settings.get_int(["width"]),
             "height": self._settings.get_int(["height"]),
             "rotate": self._settings.get_int(["rotate"]),
@@ -346,6 +360,11 @@ class BambucamPlugin(
 
 
 __plugin_name__ = "BambuCam"
+__plugin_version__ = _PLUGIN_VERSION
+__plugin_author__ = "Ajimaru"
+__plugin_url__ = "https://github.com/Ajimaru/OctoPrint-BambuCam"
+__plugin_description__ = "Bambu Lab camera stream integration for OctoPrint"
+__plugin_license__ = "AGPL-3.0-or-later"
 __plugin_pythoncompat__ = ">=3.7,<4"
 __plugin_implementation__ = BambucamPlugin()
 __plugin_hooks__ = {

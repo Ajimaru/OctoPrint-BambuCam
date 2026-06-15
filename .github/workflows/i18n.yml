@@ -5,7 +5,7 @@ on:
     branches: [main, dev]
     tags: ["v*"]
   pull_request:
-    branches: [dev]
+    branches: [dev, main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Load tool versions
         run: |
@@ -30,7 +30,7 @@ jobs:
           fi
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -40,12 +40,18 @@ jobs:
           python -m venv .venv
           . .venv/bin/activate
           python -m pip install --upgrade pip
-          # Babel must match the version the pre-commit hook and the OctoPrint
-          # venvs use, otherwise the regenerated POT differs purely by tooling
-          # and a locally-clean commit fails in CI. Pinned in versions.env.
+          # OctoPrint is required because babel.cfg's [jinja2] mapping pulls in
+          # the octoprint.util.jinja.trycatch extension, and OctoPrint also
+          # registers the Jinja2 Babel extractor entry point used to parse the
+          # plugin's .jinja2 templates. Without it pybabel raises
+          # "Unknown extraction method 'jinja2'".
+          #
+          # Do NOT pin Babel here: OctoPrint constrains Babel (>=2.16,<2.17),
+          # and pinning a different central BABEL_VERSION would conflict with
+          # it. Let OctoPrint's own requirement resolve the Babel version.
           python -m pip install setuptools \
-            "Babel==${BABEL_VERSION:-2.16.0}" \
-            "polib==${POLIB_VERSION:-1.2.0}"
+            "polib==${POLIB_VERSION:-1.2.0}" \
+            OctoPrint
 
       - name: Verify catalogs are in sync with sources
         run: |

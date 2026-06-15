@@ -2,96 +2,243 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ["main"]
     tags: ["v*"]
   pull_request:
-    branches: [dev]
+    branches: ["dev", "main"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   test:
     name: Test (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    env:
+      BABEL_VERSION: "2.16.0"
+      POLIB_VERSION: "1.2.0"
+      NODE_VERSION: "20.19.0"
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        include:
+          - python-version: "3.9"
+            os: ubuntu-latest
+            run-precommit: false # Modern pre-commit hooks require Python >= 3.10
+            run-coverage: false
+            run-build: false
+          - python-version: "3.10"
+            os: ubuntu-latest
+            run-precommit: true
+            run-coverage: false
+            run-build: false
+          - python-version: "3.11"
+            os: ubuntu-latest
+            run-precommit: true
+            run-coverage: false
+            run-build: false
+          - python-version: "3.12"
+            os: ubuntu-latest
+            run-precommit: true
+            run-coverage: true
+            run-build: true
+          - python-version: "3.13"
+            os: ubuntu-latest
+            run-precommit: true
+            run-coverage: false
+            run-build: false
 
     steps:
-      - uses: actions/checkout@v4
+      - # Checkout repository code. The coverage variant needs full history so
+        # the Codacy reporter can match coverage paths against git files
+        # (a shallow checkout triggers its "Report files will not be matched"
+        # JGit warning); other variants stay shallow for speed.
+        name: Checkout
+        uses: actions/checkout@v6
+        with:
+          # 0 is falsy in Actions expressions, so `run-coverage && 0 || 1`
+          # would always yield 1. Compare explicitly and emit string depths.
+          fetch-depth: ${{ matrix.run-coverage == true && '0' || '1' }}
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - # Load central tool-version pins, overriding the env: fallbacks above.
+        name: Load tool versions
+        run: |
+          if [ -f .development/versions.env ]; then
+            grep -vE '^\s*(#|$)' .development/versions.env >> "$GITHUB_ENV"
+          fi
+
+      - # Setup Python version and pip cache
+        name: Set up Python
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - # Upgrade pip and build tools
+        name: Upgrade pip/setuptools/wheel
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+
+      - # Create venv and install all dependencies
+        name: Create venv and install dependencies
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install "OctoPrint>=1.10.0,<2"
+          python -m pip install "Babel==${{ env.BABEL_VERSION }}" "polib==${{ env.POLIB_VERSION }}"
+          python -m pip install -e ".[develop]" build pytest pytest-cov pre-commit
+
+      - # Run unit tests (no coverage)
+        name: Run tests
+        if: ${{ !matrix.run-coverage }}
+        run: |
+          if [ -d .venv ]; then . .venv/bin/activate; fi
+          pytest -q
+
+      - # Run unit tests with coverage reporting
+        name: Run tests (with coverage)
+        if: ${{ matrix.run-coverage }}
+        run: |
+          if [ -d .venv ]; then . .venv/bin/activate; fi
+          pytest -q --cov=octoprint_bambucam --cov-branch --cov-report=xml:cobertura.xml
+
+      - # Upload coverage.xml to Codecov
+        name: Upload coverage to Codecov
+        if: ${{ matrix.run-coverage && github.repository == 'Ajimaru/OctoPrint-BambuCam' }}
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
         with:
-          node-version: "20"
-
-      - name: Install ShellCheck
-        run: sudo apt-get install -y shellcheck
-
-      - name: Install npm dependencies
-        run: npm install --no-save
-
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[develop]"
-          pip install pytest pytest-cov
-
-      - name: Run pre-commit hooks
-        run: |
-          pip install pre-commit
-          pre-commit run --all-files
-
-      - name: Run tests with coverage
-        run: |
-          pytest tests/ --cov=octoprint_bambucam --cov-report=xml -v
-
-      - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.12'
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage.xml
+          files: cobertura.xml
+          flags: unittests
           fail_ci_if_error: false
 
-      - name: Upload coverage to Codacy
-        if: matrix.python-version == '3.12'
-        uses: codacy/codacy-coverage-reporter-action@v1
-        with:
-          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
-          coverage-reports: coverage.xml
+      - # Upload coverage report to Codacy (optional)
+        name: Upload coverage to Codacy
+        if: ${{ matrix.run-coverage && github.repository == 'Ajimaru/OctoPrint-BambuCam' }}
+        env:
+          CODACY_API_TOKEN: ${{ secrets.CODACY_API_TOKEN }}
+          CODACY_ORGANIZATION_PROVIDER: ${{ vars.CODACY_ORGANIZATION_PROVIDER }}
+          CODACY_USERNAME: ${{ vars.CODACY_USERNAME }}
+          CODACY_PROJECT_NAME: ${{ vars.CODACY_PROJECT_NAME }}
         continue-on-error: true
+        run: |
+          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r cobertura.xml
 
-  smoke:
-    name: Smoke test (OctoPrint ${{ matrix.octoprint }})
+      - # Setup Node.js for pre-commit hooks (ESLint/Prettier)
+        name: Set up Node.js for hooks
+        if: ${{ matrix.run-precommit && hashFiles('.pre-commit-config.yaml') != '' && hashFiles('package.json') != '' }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: "${{ env.NODE_VERSION }}"
+
+      - # Install npm dependencies required by hooks
+        name: Install Node.js dependencies for hooks
+        if: ${{ matrix.run-precommit && hashFiles('.pre-commit-config.yaml') != '' && hashFiles('package.json') != '' }}
+        run: |
+          if [ -f package.json ] && [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund
+          elif [ -f package.json ]; then
+            npm install --no-audit --no-fund
+          fi
+
+      - # Install ShellCheck >= 0.11.0 required by custom shellcheck-hook.sh
+        name: Install ShellCheck
+        if: ${{ matrix.run-precommit && hashFiles('.pre-commit-config.yaml') != '' }}
+        run: |
+          set -e
+          SHELLCHECK_VERSION="${SHELLCHECK_MIN_VERSION:-0.11.0}"
+          INSTALL_DIR="/usr/local/bin"
+          SHELLCHECK_URL="https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
+
+          echo "Downloading ShellCheck ${SHELLCHECK_VERSION}..."
+          mkdir -p /tmp/shellcheck-install
+          cd /tmp/shellcheck-install
+          wget -q "${SHELLCHECK_URL}" -O shellcheck.tar.xz
+          tar -xf shellcheck.tar.xz
+
+          echo "Installing to ${INSTALL_DIR}..."
+          sudo cp "shellcheck-v${SHELLCHECK_VERSION}/shellcheck" "${INSTALL_DIR}/shellcheck"
+          sudo chmod +x "${INSTALL_DIR}/shellcheck"
+
+          echo "Verifying installation..."
+          "${INSTALL_DIR}/shellcheck" --version
+
+      - # Execute pre-commit hooks across repository
+        name: Run pre-commit
+        if: ${{ matrix.run-precommit && hashFiles('.pre-commit-config.yaml') != '' }}
+        # check-translations needs .development/compile_translations.sh, which
+        # lives in the gitignored local-dev toolkit and is absent in CI. The
+        # dedicated i18n workflow covers catalog sync, so skip it here.
+        env:
+          SKIP: check-translations
+        run: |
+          if [ -d .venv ]; then . .venv/bin/activate; fi
+          pre-commit run --all-files
+
+      - name: Smoke install (import check)
+        run: |
+          if [ -d .venv ]; then . .venv/bin/activate; fi
+          python -c "import importlib, sys; importlib.import_module('octoprint_bambucam'); print('ok')"
+
+      - # Build source and wheel distributions
+        name: Build package
+        if: ${{ matrix.run-build }}
+        run: |
+          if [ -d .venv ]; then . .venv/bin/activate; fi
+          python -m build
+
+  octoprint-smoke:
+    name: Smoke (OctoPrint ${{ matrix.octoprint-label }})
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
-        octoprint: ["1.10.0", "master"]
+        include:
+          - octoprint-label: "1.10.0 (minimum)"
+            octoprint-source: pypi
+            octoprint-spec: "OctoPrint==1.10.0"
+            python-version: "3.10"
+          - octoprint-label: "devel (git dev branch)"
+            octoprint-source: git
+            python-version: "3.12"
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v6
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
+          cache: pip
 
-      - name: Install OctoPrint ${{ matrix.octoprint }}
+      - name: Install OctoPrint (PyPI)
+        if: matrix.octoprint-source == 'pypi'
         run: |
           python -m pip install --upgrade pip
-          if [ "${{ matrix.octoprint }}" = "master" ]; then
-            pip install "https://github.com/OctoPrint/OctoPrint/archive/master.zip"
-          else
-            pip install "OctoPrint==${{ matrix.octoprint }}"
-          fi
-          pip install -e .
+          python -m pip install "setuptools<81" "${{ matrix.octoprint-spec }}"
 
-      - name: Verify plugin loads
+      - name: Install OctoPrint (git dev branch)
+        if: matrix.octoprint-source == 'git'
         run: |
-          python -c "import octoprint_bambucam; print('Plugin import OK')"
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install "git+https://github.com/OctoPrint/OctoPrint@dev#egg=OctoPrint"
+
+      - name: Install plugin
+        run: |
+          python -m pip install .
+
+      - name: Smoke test plugin import
+        run: |
+          python -m pip install --upgrade "setuptools<81"
+          mkdir ../smoketest
+          cd ../smoketest
+          python -c "import octoprint_bambucam; print(getattr(octoprint_bambucam, '__plugin_version__', 'unknown'))"

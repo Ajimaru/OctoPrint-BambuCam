@@ -3,6 +3,28 @@
 // (the pre-commit eslint hook runs in an isolated environment).
 export default [
   {
+    // Mirror of .gitignore: ESLint flat config does not read .gitignore, so the
+    // same build/cache/tool paths are ignored here. A standalone `ignores` block
+    // (no other keys) is treated as global ignores. Keep in sync with .gitignore.
+    ignores: [
+      ".venv*/**",
+      ".idea/**",
+      ".ruff_cache/**",
+      ".pytest_cache/**",
+      ".ideas/**",
+      ".vscode/**",
+      ".development/**",
+      ".logs/**",
+      ".cache/**",
+      ".codacy/**",
+      "build/**",
+      "dist/**",
+      "site/**",
+      "node_modules/**",
+      "**/*.egg-info/**",
+    ],
+  },
+  {
     files: ["octoprint_bambucam/static/js/**/*.js"],
     languageOptions: {
       ecmaVersion: 2021,

@@ -1,0 +1,36 @@
+# Mirror of .gitignore. Prettier does read .gitignore by default, but the
+# scripts run it as `prettier --write .`; this file makes the ignore set
+# explicit and independent of git. Keep in sync with .gitignore.
+
+# Python / build artifacts
+.venv*/
+*.pyc
+BambuCam.egg-info/
+*.egg-info/
+build/
+dist/
+*.egg/
+
+# Caches
+.ruff_cache/
+.pytest_cache/
+.coverage
+.cache/
+
+# Editor / OS / tool dirs
+.idea/
+*.iml
+.vscode/
+.DS_Store
+*.swp
+*.zip
+
+# Project working dirs
+.ideas/
+.development/
+.logs/
+.codacy/
+
+# Docs build output + node deps
+site/
+node_modules/

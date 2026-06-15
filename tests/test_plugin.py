@@ -74,10 +74,17 @@ class TestSetupHttpLogger:
 
     def test_no_duplicate_handlers(self, plugin):
         """Calling twice must not attach more than one handler."""
-        with patch("logging.handlers.RotatingFileHandler"):
+        with patch("logging.handlers.RotatingFileHandler") as mock_handler:
             plugin._setup_http_logger()
             log = plugin._setup_http_logger()
-        assert len(log.handlers) <= 1
+        # Count only handlers the code itself attached (the mocked
+        # RotatingFileHandler instances). The named logger is process-global,
+        # so pytest's own LogCaptureHandlers may also be attached when log
+        # capturing is active — those must not count toward this assertion.
+        own_handlers = [
+            h for h in log.handlers if h is mock_handler.return_value
+        ]
+        assert len(own_handlers) <= 1
 
 
 # ---------------------------------------------------------------------------
@@ -175,6 +182,7 @@ class TestGetSettingsDefaults:
             "port",
             "bind_address",
             "stream_url_override",
+            "override_resolution",
             "width",
             "height",
             "rotate",
@@ -194,6 +202,7 @@ class TestGetSettingsDefaults:
         assert d["enabled"] is True
         assert d["port"] == 8181
         assert d["bind_address"] == "127.0.0.1"
+        assert d["override_resolution"] is False
         assert d["width"] == 1920
         assert d["height"] == 1080
 
@@ -397,6 +406,7 @@ class TestDaemonConfig:
             "access_code",
             "port",
             "bind_address",
+            "override_resolution",
             "width",
             "height",
             "rotate",
@@ -706,8 +716,7 @@ class TestGetUpdateInformation:
         """The pip URL points to the correct GitHub repository."""
         info = plugin.get_update_information()
         pip = info["bambucam"]["pip"]
-        assert "github.com" in pip
-        assert "OctoPrint-BambuCam" in pip
+        assert pip.startswith("https://github.com/Ajimaru/OctoPrint-BambuCam")
 
     def test_version_matches(self, plugin):
         """The current version in update info matches the plugin version."""

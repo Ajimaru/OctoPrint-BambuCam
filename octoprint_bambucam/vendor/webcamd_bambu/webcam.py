@@ -401,6 +401,11 @@ def main():
         auth_data += struct.pack("<x")
 
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    # OctoPrint-BambuCam patch: floor the TLS version at 1.2 (Bambu printers
+    # support it) so legacy TLSv1/1.1 are never offered. Cert/hostname checks
+    # stay disabled because the printer uses a self-signed cert + custom
+    # handshake.
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
 

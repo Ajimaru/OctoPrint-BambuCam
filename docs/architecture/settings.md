@@ -13,8 +13,9 @@ listed in the module-level `DAEMON_SETTINGS` tuple:
 ```python
 DAEMON_SETTINGS = (
     "enabled", "hostname", "access_code", "port", "bind_address",
-    "width", "height", "rotate", "flashred", "showfps", "loghttp",
-    "encodewait", "autorestart", "max_restarts", "restart_window",
+    "override_resolution", "width", "height", "rotate", "flashred",
+    "showfps", "loghttp", "encodewait", "autorestart", "max_restarts",
+    "restart_window",
 )
 ```
 

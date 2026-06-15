@@ -296,14 +296,22 @@ class TestBuildArgv:
         assert "--v4bindaddress" in argv
 
     def test_width_height_included(self, manager, valid_config):
-        """Non-zero width and height produce --width/--height flags."""
+        """With override on, non-zero width/height produce --width/--height."""
         argv = manager._build_argv(valid_config)
         assert "--width" in argv
         assert "--height" in argv
 
     def test_zero_width_omitted(self, manager, valid_config):
-        """Width/height of zero omit the corresponding flags."""
+        """Width/height of zero omit the flags even when override is on."""
         cfg = dict(valid_config, width=0, height=0)
+        argv = manager._build_argv(cfg)
+        assert "--width" not in argv
+        assert "--height" not in argv
+
+    def test_resolution_omitted_when_override_off(self, manager, valid_config):
+        """Override off (the default) never forwards --width/--height, even
+        with non-zero width/height set in the config."""
+        cfg = dict(valid_config, override_resolution=False)
         argv = manager._build_argv(cfg)
         assert "--width" not in argv
         assert "--height" not in argv

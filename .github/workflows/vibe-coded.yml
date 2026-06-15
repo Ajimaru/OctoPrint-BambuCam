@@ -1,0 +1,39 @@
+name: Vibe Coded Badge
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vibe-coded-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  update-badge:
+    name: Update vibe-coded badge
+    runs-on: ubuntu-latest
+    # The action itself pushes the README update; skip those commits so the
+    # workflow does not retrigger itself in a loop.
+    if: "!contains(github.event.head_commit.message, '[skip vibe-badge]')"
+    permissions:
+      contents: write
+    steps:
+      - # Full history is required so the action can classify every commit.
+        name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - # Recompute the AI-authored commit percentage and rewrite the badge in
+        # README.md (style/colour kept in sync with the static fallback there).
+        name: Update badge
+        uses: ai-ecoverse/vibe-coded-badge-action@c6875e7a00b5fa208aef24a2e083ccbe13fa870d # main
+        with:
+          badge-style: for-the-badge
+          badge-color: ff69b4
+          badge-text: Vibe_Coded
+          commit-message: "chore: update vibe-coded badge [skip vibe-badge]"

@@ -1,0 +1,24 @@
+# flake8 does not read pyproject.toml. These settings mirror the args used by
+# the flake8 pre-commit hook, plus an extend-exclude that mirrors .gitignore so
+# direct `flake8` runs (CLI / IDE) skip the same build/cache/tool paths.
+# Keep the exclude set in sync with .gitignore.
+[flake8]
+max-line-length = 80
+extend-ignore = E203,W503
+extend-exclude =
+    .venv*,
+    .idea,
+    .ruff_cache,
+    .pytest_cache,
+    .ideas,
+    .vscode,
+    .development,
+    .logs,
+    .cache,
+    .codacy,
+    build,
+    dist,
+    site,
+    node_modules,
+    *.egg-info,
+    *.egg

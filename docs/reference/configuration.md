@@ -12,8 +12,9 @@ marked **↻** trigger a daemon restart when changed (they are members of
 | `port`                | `8181`      | ✅  | Local TCP port of the MJPEG server.                           |
 | `bind_address`        | `127.0.0.1` | ✅  | `127.0.0.1` (safe) or `0.0.0.0` (browser live view).          |
 | `stream_url_override` | `""`        |  —  | Explicit stream URL for reverse-proxy setups (no restart).    |
-| `width`               | `1920`      | ✅  | Capture width passed to `--width`.                            |
-| `height`              | `1080`      | ✅  | Capture height passed to `--height`.                          |
+| `override_resolution` | `False`     | ✅  | Opt-in to force `--width`/`--height` (off = printer-native).  |
+| `width`               | `1920`      | ✅  | `--width`, only sent when `override_resolution` is on.        |
+| `height`              | `1080`      | ✅  | `--height`, only sent when `override_resolution` is on.       |
 | `rotate`              | `-1`        | ✅  | `-1` = none; `0/90/180/270` rotate the image.                 |
 | `flashred`            | `False`     | ✅  | Overlay a pulsing activity dot (`--flashred`).                |
 | `showfps`             | `False`     | ✅  | Overlay measured FPS watermark (`--showfps`).                 |
@@ -32,6 +33,8 @@ marked **↻** trigger a daemon restart when changed (they are members of
 `_build_argv()` maps the config dict to `webcam.py` flags. Notably:
 
 - `rotate == -1` omits `--rotate` entirely.
-- `width` / `height` / `encodewait` are only passed when set.
+- `width` / `height` are only passed when `override_resolution` is enabled
+  (and the value is non-zero); otherwise the printer's native frame size is used.
+- `encodewait` is only passed when set.
 - `flashred` / `showfps` / `loghttp` are boolean flags (present when true).
 - `bind_address` maps to `--v4bindaddress`, `access_code` to `--password`.
