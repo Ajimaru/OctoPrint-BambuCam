@@ -109,6 +109,11 @@ jobs:
       - # Run complete pre-commit suite
         name: Run pre-commit on all files
         if: ${{ hashFiles('.pre-commit-config.yaml') != '' }}
+        # check-translations needs .development/compile_translations.sh, which
+        # lives in the gitignored local-dev toolkit and is absent in CI. The
+        # dedicated i18n workflow covers catalog sync, so skip it here.
+        env:
+          SKIP: check-translations
         run: |
           pre-commit run --all-files --show-diff-on-failure --color always
 

@@ -34,7 +34,6 @@ node_modules/
 
 # Local-only tooling configs (not consumed by CI / pre-commit).
 # Editors and local tools read these directly; the GitHub workflows do not.
-.editorconfig
 .markdownlint.json
 .markdownlintignore
 .snyk
