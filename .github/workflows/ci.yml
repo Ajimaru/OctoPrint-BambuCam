@@ -62,7 +62,9 @@ jobs:
         name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: ${{ matrix.run-coverage && 0 || 1 }}
+          # 0 is falsy in Actions expressions, so `run-coverage && 0 || 1`
+          # would always yield 1. Compare explicitly and emit string depths.
+          fetch-depth: ${{ matrix.run-coverage == true && '0' || '1' }}
 
       - # Load central tool-version pins, overriding the env: fallbacks above.
         name: Load tool versions
