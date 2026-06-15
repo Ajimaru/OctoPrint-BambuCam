@@ -47,14 +47,14 @@ jobs:
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create versioned ZIP
+      - name: Stage release artifacts
         run: |
-          TAG="${{ github.ref_name }}"
           mkdir -p release_zips
-          cp dist/*.whl "release_zips/BambuCam-${TAG}.whl"
-          cp dist/*.tar.gz "release_zips/BambuCam-${TAG}.tar.gz"
-          cp dist/*.whl "release_zips/BambuCam-latest.whl"
-          cp dist/*.tar.gz "release_zips/BambuCam-latest.tar.gz"
+          # Keep the wheel's original, PEP 427-compliant filename
+          # ({name}-{version}-{pytag}-{abitag}-{platformtag}.whl). pip rejects
+          # any renamed wheel ("wrong number of parts"), so it must not be
+          # aliased — both the OctoPrint plugin manager and pip parse the name.
+          cp dist/*.whl dist/*.tar.gz release_zips/
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
