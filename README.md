@@ -283,7 +283,6 @@ systeminfo bundle when opening a bug report.
 ![Top Language][b-top]
 [![License][b-lic]](https://github.com/Ajimaru/OctoPrint-BambuCam/blob/main/LICENSE)
 [![PRs Welcome][b-prs]](https://github.com/Ajimaru/OctoPrint-BambuCam/pulls)
-[![Vibe Coded][b-vibe]](https://github.com/ai-ecoverse/vibe-coded-badge-action)
 
 [b-size]: https://img.shields.io/github/languages/code-size/Ajimaru/OctoPrint-BambuCam
 [b-secp]: https://img.shields.io/badge/security-policy-blue
@@ -292,7 +291,6 @@ systeminfo bundle when opening a bug report.
 [b-top]: https://img.shields.io/github/languages/top/Ajimaru/OctoPrint-BambuCam
 [b-lic]: https://img.shields.io/github/license/Ajimaru/OctoPrint-BambuCam
 [b-prs]: https://img.shields.io/badge/PRs-welcome-brightgreen.svg
-[b-vibe]: https://img.shields.io/badge/Vibe_Coded-ff69b4?style=for-the-badge&logo=robotframework&logoColor=white
 
 </details>
 <!-- markdownlint-enable MD033 -->
