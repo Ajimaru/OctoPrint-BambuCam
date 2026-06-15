@@ -709,11 +709,7 @@ class TestGetUpdateInformation:
         """The pip URL points to the correct GitHub repository."""
         info = plugin.get_update_information()
         pip = info["bambucam"]["pip"]
-        # Assert on the full host prefix rather than a bare "github.com"
-        # substring (the latter trips CodeQL's URL-sanitization heuristic and
-        # would also pass for e.g. "github.com.evil.test").
-        assert "https://github.com/" in pip
-        assert "OctoPrint-BambuCam" in pip
+        assert pip.startswith("https://github.com/Ajimaru/OctoPrint-BambuCam")
 
     def test_version_matches(self, plugin):
         """The current version in update info matches the plugin version."""

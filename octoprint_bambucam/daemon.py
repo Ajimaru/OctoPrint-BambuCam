@@ -304,8 +304,14 @@ class WebcamdManager:
         argv = self._build_argv(self._config)
         try:
             # cwd must be the vendor dir: webcam.py loads its watermark font
-            # via a relative path
-            process = subprocess.Popen(
+            # via a relative path.
+            #
+            # Not a command-injection vector: shell=False (the default),
+            # argv[0] is sys.executable and argv[2] is the constant
+            # WEBCAM_SCRIPT, so the program run is fixed. User-controlled
+            # values (hostname, access_code, …) are passed as separate list
+            # elements — never shell-interpreted.
+            process = subprocess.Popen(  # nosec B603 - no shell, fixed argv
                 argv,
                 cwd=VENDOR_DIR,
                 stdout=subprocess.PIPE,

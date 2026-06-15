@@ -229,4 +229,4 @@ jobs:
           python -m pip install --upgrade "setuptools<81"
           mkdir ../smoketest
           cd ../smoketest
-          python -c "import octoprint_bambucam; print(getattr(octoprint_bambucam, '__version__', 'unknown'))"
+          python -c "import octoprint_bambucam; print(getattr(octoprint_bambucam, '__plugin_version__', 'unknown'))"

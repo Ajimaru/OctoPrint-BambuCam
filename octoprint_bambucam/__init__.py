@@ -115,7 +115,9 @@ class BambucamPlugin(
                 "BambuCam is not configured yet, not starting webcamd"
             )
             return
-        assert self._manager is not None  # set in initialize()
+        if self._manager is None:  # set in initialize()
+            self._logger.error("webcamd manager not initialized")
+            return
         ok, error = self._manager.start(self._daemon_config())
         if not ok:
             self._logger.error("could not start webcamd: %s", error)
@@ -162,7 +164,9 @@ class BambucamPlugin(
         if old == new:
             return result
 
-        assert self._manager is not None  # set in initialize()
+        if self._manager is None:  # set in initialize()
+            self._logger.error("webcamd manager not initialized")
+            return result
         if self._settings.get_boolean(["enabled"]):
             self._logger.info(
                 "daemon-relevant settings changed, restarting webcamd"
@@ -247,7 +251,8 @@ class BambucamPlugin(
     def on_api_get(self, request) -> flask.Response:
         if not Permissions.SETTINGS.can():
             flask.abort(403)
-        assert self._manager is not None  # set in initialize()
+        if self._manager is None:  # set in initialize()
+            flask.abort(500)
         status = self._manager.status()
         status["stream_url"] = self._stream_url()
         return flask.jsonify(status)
@@ -255,7 +260,8 @@ class BambucamPlugin(
     def on_api_command(self, command, data) -> Optional[flask.Response]:
         # fetch_info only reads (and the password is already redacted by the
         # vendored webcam.py), so SETTINGS is enough; the rest needs ADMIN.
-        assert self._manager is not None  # set in initialize()
+        if self._manager is None:  # set in initialize()
+            flask.abort(500)
         if command == "fetch_info":
             if not Permissions.SETTINGS.can():
                 flask.abort(403)
