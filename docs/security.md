@@ -37,9 +37,19 @@ The vendored daemon's unauthenticated `/?shutdown` endpoint is **disabled** (see
 `octoprint_bambucam/vendor/webcamd_bambu/UPSTREAM.md`) so it cannot be used to
 kill the stream server remotely.
 
+## TLS to the printer
+
+The connection to the printer's camera port (6000) floors the protocol at
+**TLS 1.2** (`ssl.TLSVersion.TLSv1_2`) so the legacy TLS 1.0/1.1 versions are
+never negotiated — both in `daemon.py` (the connection test) and in the vendored
+`webcam.py` (the stream, local patch #5). Certificate and hostname verification
+stay disabled because Bambu printers present a self-signed certificate and use a
+custom binary handshake; this is an inherent constraint of the LAN protocol, not
+a configurable option.
+
 ## Reporting
 
-Report vulnerabilities by email to **ajimaru_gdr@pm.me** — please do **not**
+Report vulnerabilities by email to **<ajimaru_gdr@pm.me>** — please do **not**
 open a public issue. See the full
 [Security Policy](https://github.com/Ajimaru/OctoPrint-BambuCam/blob/main/SECURITY.md)
 for scope and response times.

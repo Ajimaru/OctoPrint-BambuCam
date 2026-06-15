@@ -276,12 +276,16 @@ class WebcamdManager:
             "--v4bindaddress",
             str(config.get("bind_address", "127.0.0.1")),
         ]
-        width = config.get("width")
-        if width:
-            argv += ["--width", str(int(width))]
-        height = config.get("height")
-        if height:
-            argv += ["--height", str(int(height))]
+        # Width/height are only forwarded when the user opts in: the printer
+        # streams a fixed frame size and passing a mismatched --width/--height
+        # corrupts the rendered image (renders into a wrongly-sized canvas).
+        if config.get("override_resolution"):
+            width = config.get("width")
+            if width:
+                argv += ["--width", str(int(width))]
+            height = config.get("height")
+            if height:
+                argv += ["--height", str(int(height))]
         rotate = int(config.get("rotate", -1))
         if rotate != -1:
             argv += ["--rotate", str(rotate)]

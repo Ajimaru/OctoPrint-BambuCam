@@ -31,6 +31,7 @@ DAEMON_SETTINGS = (
     "access_code",
     "port",
     "bind_address",
+    "override_resolution",
     "width",
     "height",
     "rotate",
@@ -135,6 +136,9 @@ class BambucamPlugin(
             "port": 8181,
             "bind_address": "127.0.0.1",
             "stream_url_override": "",
+            # The printer dictates the frame size; width/height are only sent to
+            # webcamd when the user explicitly overrides them (off by default).
+            "override_resolution": False,
             "width": 1920,
             "height": 1080,
             "rotate": -1,
@@ -311,6 +315,9 @@ class BambucamPlugin(
             "access_code": self._settings.get(["access_code"]),
             "port": self._settings.get_int(["port"]),
             "bind_address": self._settings.get(["bind_address"]),
+            "override_resolution": self._settings.get_boolean(
+                ["override_resolution"]
+            ),
             "width": self._settings.get_int(["width"]),
             "height": self._settings.get_int(["height"]),
             "rotate": self._settings.get_int(["rotate"]),

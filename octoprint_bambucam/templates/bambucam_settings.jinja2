@@ -147,13 +147,23 @@
         <div class="tab-pane" id="bambucam_tab_advanced">
             <h4>{{ _("Resolution") }}</h4>
             <div class="control-group">
+                <div class="controls">
+                    <label class="checkbox">
+                        <input type="checkbox"
+                               data-bind="checked: settings.plugins.bambucam.override_resolution" />
+                        {{ _("Override resolution") }}
+                    </label>
+                    <span class="help-block">{{ _("Off by default: the printer dictates the frame size. Only enable this if you specifically need to force a width/height — a value that does not match the printer's stream can corrupt the image.") }}</span>
+                </div>
+            </div>
+            <div class="control-group">
                 <label class="control-label">{{ _("Width") }}</label>
                 <div class="controls">
                     <input type="number"
                            min="1"
                            class="input-small"
-                           data-bind="value: settings.plugins.bambucam.width" />
-                    <span class="help-block">{{ _("Informational only; frames arrive as-is from the printer. Default 1920.") }}</span>
+                           data-bind="value: settings.plugins.bambucam.width, enable: settings.plugins.bambucam.override_resolution" />
+                    <span class="help-block">{{ _("Only used when 'Override resolution' is enabled.") }}</span>
                 </div>
             </div>
             <div class="control-group">
@@ -162,8 +172,8 @@
                     <input type="number"
                            min="1"
                            class="input-small"
-                           data-bind="value: settings.plugins.bambucam.height" />
-                    <span class="help-block">{{ _("Informational only; frames arrive as-is from the printer. Default 1080.") }}</span>
+                           data-bind="value: settings.plugins.bambucam.height, enable: settings.plugins.bambucam.override_resolution" />
+                    <span class="help-block">{{ _("Only used when 'Override resolution' is enabled.") }}</span>
                 </div>
             </div>
             <h4>{{ _("Image") }}</h4>
@@ -216,6 +226,26 @@
                                data-bind="checked: settings.plugins.bambucam.loghttp" />
                         {{ _("Log HTTP requests of the stream server (debug)") }}
                     </label>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">{{ _("Max restarts") }}</label>
+                <div class="controls">
+                    <input type="number"
+                           min="0"
+                           class="input-small"
+                           data-bind="value: settings.plugins.bambucam.max_restarts, enable: settings.plugins.bambucam.autorestart" />
+                    <span class="help-block">{{ _("Give up auto-restarting after this many crashes within the restart window. Only used when auto-restart is enabled.") }}</span>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">{{ _("Restart window (seconds)") }}</label>
+                <div class="controls">
+                    <input type="number"
+                           min="1"
+                           class="input-small"
+                           data-bind="value: settings.plugins.bambucam.restart_window, enable: settings.plugins.bambucam.autorestart" />
+                    <span class="help-block">{{ _("Time window over which the crash count is measured. Only used when auto-restart is enabled.") }}</span>
                 </div>
             </div>
             <h4>{{ _("Diagnostics") }}</h4>

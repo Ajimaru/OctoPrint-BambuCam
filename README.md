@@ -26,6 +26,13 @@
 
 ### Live camera stream from Bambu Lab printers — inside OctoPrint
 
+> [!NOTE]
+> **About this project.** I built this for my own printer setup with AI, and if
+> it helps others, even better. I have tested it to the best of my knowledge and
+> ability, and every change is backed by an automated test suite, CI, and
+> security scans (Bandit, CodeQL). Disclosed here per the OctoPrint plugin guidelines.
+> Issues and PRs are welcome.
+
 ## Highlights
 
 - 📷 **Live MJPEG Stream** — Camera of P1P / P1S / A1 / A1 mini in OctoPrint's
@@ -115,6 +122,8 @@ Use **Test connection** to verify both values before saving.
 | HTTP port           | `8181`      | Local port of the MJPEG server.                    |
 | Bind address        | `127.0.0.1` | `127.0.0.1` = safe. `0.0.0.0` = browser live view. |
 | Stream URL override | _(empty)_   | Use with a reverse proxy.                          |
+| Override resolution | off         | Off = printer sets the frame size (recommended).   |
+| Width / Height      | `1920x1080` | Only applied when Override resolution is enabled.  |
 | Rotation            | `-1` (none) | Rotate 90 / 180 / 270 degrees.                     |
 | Activity dot        | off         | Overlay a pulsing dot when the stream is active.   |
 | FPS watermark       | off         | Overlay the measured FPS on the image.             |
@@ -272,6 +281,7 @@ systeminfo bundle when opening a bug report.
 ![Top Language][b-top]
 [![License][b-lic]](https://github.com/Ajimaru/OctoPrint-BambuCam/blob/main/LICENSE)
 [![PRs Welcome][b-prs]](https://github.com/Ajimaru/OctoPrint-BambuCam/pulls)
+[![Vibe Coded][b-vibe]](https://github.com/ai-ecoverse/vibe-coded-badge-action)
 
 [b-size]: https://img.shields.io/github/languages/code-size/Ajimaru/OctoPrint-BambuCam
 [b-secp]: https://img.shields.io/badge/security-policy-blue
@@ -280,6 +290,7 @@ systeminfo bundle when opening a bug report.
 [b-top]: https://img.shields.io/github/languages/top/Ajimaru/OctoPrint-BambuCam
 [b-lic]: https://img.shields.io/github/license/Ajimaru/OctoPrint-BambuCam
 [b-prs]: https://img.shields.io/badge/PRs-welcome-brightgreen.svg
+[b-vibe]: https://img.shields.io/badge/Vibe_Coded-ff69b4?style=for-the-badge&logo=robotframework&logoColor=white
 
 </details>
 <!-- markdownlint-enable MD033 -->

@@ -175,6 +175,7 @@ class TestGetSettingsDefaults:
             "port",
             "bind_address",
             "stream_url_override",
+            "override_resolution",
             "width",
             "height",
             "rotate",
@@ -194,6 +195,7 @@ class TestGetSettingsDefaults:
         assert d["enabled"] is True
         assert d["port"] == 8181
         assert d["bind_address"] == "127.0.0.1"
+        assert d["override_resolution"] is False
         assert d["width"] == 1920
         assert d["height"] == 1080
 
@@ -397,6 +399,7 @@ class TestDaemonConfig:
             "access_code",
             "port",
             "bind_address",
+            "override_resolution",
             "width",
             "height",
             "rotate",

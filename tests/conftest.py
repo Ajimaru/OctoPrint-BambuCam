@@ -138,6 +138,7 @@ def valid_config() -> dict:
         "access_code": "12345678",
         "port": 18181,
         "bind_address": "127.0.0.1",
+        "override_resolution": True,
         "width": 1920,
         "height": 1080,
         "rotate": -1,
