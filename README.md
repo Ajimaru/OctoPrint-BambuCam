@@ -206,11 +206,11 @@ systeminfo bundle when opening a bug report.
 [![Lint][b-lint]](https://github.com/Ajimaru/OctoPrint-BambuCam/actions/workflows/lint.yml?query=branch%3Amain)
 [![Bandit SARIF][b-bandit]](https://github.com/Ajimaru/OctoPrint-BambuCam/actions/workflows/bandit-sarif.yml?query=branch%3Amain)
 
-[b-ci]: https://github.com/Ajimaru/OctoPrint-BambuCam/actions/workflows/ci.yml/badge.svg?branch=main
-[b-docs]: https://github.com/Ajimaru/OctoPrint-BambuCam/actions/workflows/docs.yml/badge.svg?branch=main
-[b-i18n]: https://github.com/Ajimaru/OctoPrint-BambuCam/actions/workflows/i18n.yml/badge.svg?branch=main
-[b-lint]: https://github.com/Ajimaru/OctoPrint-BambuCam/actions/workflows/lint.yml/badge.svg?branch=main
-[b-bandit]: https://github.com/Ajimaru/OctoPrint-BambuCam/actions/workflows/bandit-sarif.yml/badge.svg?branch=main
+[b-ci]: https://img.shields.io/github/actions/workflow/status/Ajimaru/OctoPrint-BambuCam/ci.yml?branch=main&style=flat-square&label=CI
+[b-docs]: https://img.shields.io/github/actions/workflow/status/Ajimaru/OctoPrint-BambuCam/docs.yml?branch=main&style=flat-square&label=docs
+[b-i18n]: https://img.shields.io/github/actions/workflow/status/Ajimaru/OctoPrint-BambuCam/i18n.yml?branch=main&style=flat-square&label=i18n
+[b-lint]: https://img.shields.io/github/actions/workflow/status/Ajimaru/OctoPrint-BambuCam/lint.yml?branch=main&style=flat-square&label=Lint
+[b-bandit]: https://img.shields.io/github/actions/workflow/status/Ajimaru/OctoPrint-BambuCam/bandit-sarif.yml?branch=main&style=flat-square&label=Bandit%20SARIF
 
 ### 🧪 2. Code Quality & Formatting
 
@@ -229,8 +229,8 @@ systeminfo bundle when opening a bug report.
 [b-isort]: https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat-square&labelColor=ef8336
 [b-prettier]: https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square
 [b-precommit]: https://img.shields.io/badge/pre--commit-enabled-brightgreen?style=flat-square&logo=pre-commit&logoColor=white
-[b-codacy]: https://app.codacy.com/project/badge/Grade/75d9ec1b49a64a3aae3615e21e6ff2ce
-[b-coverage]: https://codecov.io/gh/Ajimaru/OctoPrint-BambuCam/graph/badge.svg?branch=main
+[b-codacy]: https://img.shields.io/codacy/grade/75d9ec1b49a64a3aae3615e21e6ff2ce?style=flat-square
+[b-coverage]: https://img.shields.io/codecov/c/github/Ajimaru/OctoPrint-BambuCam?style=flat-square
 [b-pylint]: https://img.shields.io/badge/pylint-10.0-green.svg?style=flat-square
 [b-sec]: https://img.shields.io/badge/bandit-security-green.svg?style=flat-square
 [b-depfu]: https://badges.depfu.com/badges/7d0d03953a51f03e18a2eae2453d64f5/status.svg
