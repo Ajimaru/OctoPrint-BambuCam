@@ -74,10 +74,17 @@ class TestSetupHttpLogger:
 
     def test_no_duplicate_handlers(self, plugin):
         """Calling twice must not attach more than one handler."""
-        with patch("logging.handlers.RotatingFileHandler"):
+        with patch("logging.handlers.RotatingFileHandler") as mock_handler:
             plugin._setup_http_logger()
             log = plugin._setup_http_logger()
-        assert len(log.handlers) <= 1
+        # Count only handlers the code itself attached (the mocked
+        # RotatingFileHandler instances). The named logger is process-global,
+        # so pytest's own LogCaptureHandlers may also be attached when log
+        # capturing is active — those must not count toward this assertion.
+        own_handlers = [
+            h for h in log.handlers if h is mock_handler.return_value
+        ]
+        assert len(own_handlers) <= 1
 
 
 # ---------------------------------------------------------------------------
