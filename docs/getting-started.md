@@ -6,7 +6,7 @@ plugin through OctoPrint's Plugin Manager — see the
 
 ## Prerequisites
 
-- Python 3.7+ (3.12 is used in CI)
+- Python 3.9+ (tested on 3.9–3.13 in CI)
 - An OctoPrint instance (a dedicated venv is recommended)
 - Node.js 20+ (only for the JS lint/format hooks and JSDoc generation)
 - A Bambu Lab P1P / P1S / A1 / A1 mini in **LAN mode** with its access code
