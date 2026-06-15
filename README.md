@@ -26,6 +26,8 @@
 
 ### Live camera stream from Bambu Lab printers — inside OctoPrint
 
+[![71% Vibe_Coded](https://img.shields.io/badge/71%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=claude&logoColor=white)](https://github.com/ai-ecoverse/vibe-coded-badge-action)
+
 > [!NOTE]
 > **About this project.** I built this for my own printer setup with AI, and if
 > it helps others, even better. I have tested it to the best of my knowledge and
