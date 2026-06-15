@@ -48,13 +48,73 @@ jobs:
           fi
 
       - name: Stage release artifacts
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p release_zips
+
           # Keep the wheel's original, PEP 427-compliant filename
           # ({name}-{version}-{pytag}-{abitag}-{platformtag}.whl). pip rejects
           # any renamed wheel ("wrong number of parts"), so it must not be
           # aliased — both the OctoPrint plugin manager and pip parse the name.
           cp dist/*.whl dist/*.tar.gz release_zips/
+
+          # Also publish a source .zip (versioned + a stable -latest.zip). A zip
+          # has no strict filename parser, so the OctoPrint plugin manager can
+          # install it directly from a fixed "…-latest.zip" URL. Build it from
+          # the sdist tarball rather than the working tree so it matches the
+          # released source exactly.
+          version="${GITHUB_REF_NAME#v}"
+          zip_versioned="release_zips/OctoPrint-BambuCam-${version}.zip"
+          zip_latest="release_zips/OctoPrint-BambuCam-latest.zip"
+
+          shopt -s nullglob
+          sdist_candidates=(dist/*"${version}".tar.gz)
+          if (( ${#sdist_candidates[@]} != 1 )); then
+            echo "Expected exactly one sdist tarball matching version ${version}, found ${#sdist_candidates[@]}" >&2
+            ls -la dist >&2 || true
+            exit 1
+          fi
+          sdist="${sdist_candidates[0]}"
+
+          python - "$sdist" "$zip_versioned" <<'PY'
+          import sys
+          import tarfile
+          import zipfile
+          from pathlib import Path, PurePosixPath
+
+          tar_path = Path(sys.argv[1])
+          zip_path = Path(sys.argv[2])
+          zip_path.parent.mkdir(parents=True, exist_ok=True)
+
+          with tarfile.open(tar_path, "r:gz") as tf, zipfile.ZipFile(
+              zip_path, "w", compression=zipfile.ZIP_DEFLATED
+          ) as zf:
+              for member in tf.getmembers():
+                  if not member.isfile():
+                      continue
+
+                  # Defensive: never let a tar member become a path-traversal
+                  # entry in the zip. Tar archives always use POSIX paths.
+                  member_path = PurePosixPath(member.name)
+                  if (
+                      member_path.is_absolute()
+                      or ".." in member_path.parts
+                      or ":" in member.name
+                      or member.name.startswith("\\")
+                  ):
+                      continue
+
+                  extracted = tf.extractfile(member)
+                  if extracted is None:
+                      continue
+
+                  zi = zipfile.ZipInfo(str(member_path))
+                  zi.external_attr = (member.mode & 0o777) << 16
+                  zf.writestr(zi, extracted.read())
+          PY
+
+          cp -f "$zip_versioned" "$zip_latest"
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
