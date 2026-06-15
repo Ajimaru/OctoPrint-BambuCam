@@ -78,7 +78,7 @@
 4. Click **Install from URL** and enter:
 
    ```text
-   https://github.com/Ajimaru/OctoPrint-BambuCam/releases/latest/download/BambuCam-latest.whl
+   https://github.com/Ajimaru/OctoPrint-BambuCam/releases/latest/download/OctoPrint-BambuCam-latest.zip
    ```
 
 5. Click **Install**
@@ -91,7 +91,7 @@
 <summary>Manual pip install</summary>
 
 ```bash
-pip install https://github.com/Ajimaru/OctoPrint-BambuCam/releases/latest/download/BambuCam-latest.whl
+pip install https://github.com/Ajimaru/OctoPrint-BambuCam/releases/latest/download/OctoPrint-BambuCam-latest.zip
 ```
 
 The `releases/latest` URL always points to the newest stable release.
