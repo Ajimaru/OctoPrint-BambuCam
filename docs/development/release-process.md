@@ -21,7 +21,9 @@ build time (`octoprint_bambucam/_version.py`) and surfaced through
    ```
 
 4. The `release` workflow (`.github/workflows/release.yml`) builds the wheel and
-   attaches it to the GitHub Release.
+   sdist and attaches them to the GitHub Release, plus a versioned source zip
+   (`OctoPrint-BambuCam-<version>.zip`) and a stable
+   `OctoPrint-BambuCam-latest.zip`.
 
 ## Update artifact
 
@@ -34,8 +36,12 @@ https://github.com/Ajimaru/OctoPrint-BambuCam/archive/{target_version}.zip
 and the README points the Plugin Manager at:
 
 ```text
-https://github.com/Ajimaru/OctoPrint-BambuCam/releases/latest/download/BambuCam-latest.whl
+https://github.com/Ajimaru/OctoPrint-BambuCam/releases/latest/download/OctoPrint-BambuCam-latest.zip
 ```
 
-Make sure the release attaches a `BambuCam-latest.whl` asset so the
-`releases/latest` install URL keeps working.
+The Plugin Manager installs a source **zip**, not a wheel — a wheel filename is
+parsed by pip (`{name}-{version}-{pytag}-{abitag}-{platformtag}.whl`) and a
+renamed/aliased wheel is rejected with "Invalid wheel filename". A zip has no
+such constraint, so the workflow publishes `OctoPrint-BambuCam-latest.zip` to
+keep the `releases/latest` install URL working. The wheel is still attached
+under its original PEP 427 name for direct `pip install`.
