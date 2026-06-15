@@ -23,10 +23,16 @@ jobs:
       contents: write
     steps:
       - # Full history is required so the action can classify every commit.
+        # Check out with VIBE_BADGE_TOKEN (a PAT) so the badge commit can be
+        # pushed past branch protection on main; the default GITHUB_TOKEN is
+        # rejected by the protected branch. Falls back to GITHUB_TOKEN if the
+        # secret is unset (push will then be skipped, not fail the run).
         name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.VIBE_BADGE_TOKEN || secrets.GITHUB_TOKEN }}
+          persist-credentials: true
 
       - # Recompute the AI-authored commit percentage and rewrite the badge in
         # README.md (style/colour kept in sync with the static fallback there).
