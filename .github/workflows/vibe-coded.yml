@@ -31,7 +31,7 @@ jobs:
       - # Recompute the AI-authored commit percentage and rewrite the badge in
         # README.md (style/colour kept in sync with the static fallback there).
         name: Update badge
-        uses: ai-ecoverse/vibe-coded-badge-action@main
+        uses: ai-ecoverse/vibe-coded-badge-action@c6875e7a00b5fa208aef24a2e083ccbe13fa870d # main
         with:
           badge-style: for-the-badge
           badge-color: ff69b4
