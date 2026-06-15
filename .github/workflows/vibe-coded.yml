@@ -35,11 +35,12 @@ jobs:
           persist-credentials: true
 
       - # Recompute the AI-authored commit percentage and rewrite the badge in
-        # README.md (style/colour kept in sync with the static fallback there).
+        # README.md. badge-style is flat-square to match the other README
+        # badges (the social ones excepted, which keep style=social).
         name: Update badge
         uses: ai-ecoverse/vibe-coded-badge-action@c6875e7a00b5fa208aef24a2e083ccbe13fa870d # main
         with:
-          badge-style: for-the-badge
+          badge-style: flat-square
           badge-color: ff69b4
           badge-text: Vibe_Coded
           commit-message: "chore: update vibe-coded badge [skip vibe-badge]"
