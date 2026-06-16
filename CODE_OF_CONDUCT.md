@@ -47,10 +47,9 @@ an individual is officially representing the community in public spaces.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the project maintainer at
-**[ajimaru_gdr@pm.me](mailto:ajimaru_gdr@pm.me)**. All complaints will
-be reviewed and investigated promptly and fairly. The maintainer is obligated to
-respect the privacy and security of the reporter.
+reported to the project maintainer at **ajimaru_gdr [at] pm [dot] me**.
+All complaints will be reviewed and investigated promptly and fairly.
+The maintainer is obligated to respect the privacy and security of the reporter.
 
 ## Attribution
 
