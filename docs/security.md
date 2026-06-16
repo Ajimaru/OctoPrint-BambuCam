@@ -49,7 +49,7 @@ a configurable option.
 
 ## Reporting
 
-Report vulnerabilities by email to **<ajimaru_gdr@pm.me>** — please do **not**
-open a public issue. See the full
+Report vulnerabilities by email to **ajimaru_gdr [at] pm [dot] me** — please do
+**not** open a public issue. See the full
 [Security Policy](https://github.com/Ajimaru/OctoPrint-BambuCam/blob/main/SECURITY.md)
 for scope and response times.

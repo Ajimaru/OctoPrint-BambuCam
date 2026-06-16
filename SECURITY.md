@@ -9,8 +9,7 @@ you are running the most recent release before reporting an issue.
 
 **Please do not open a public GitHub issue for security vulnerabilities.**
 
-Report vulnerabilities by email to
-**[ajimaru_gdr@pm.me](mailto:ajimaru_gdr@pm.me)**. Include:
+Report vulnerabilities by email to **ajimaru_gdr [at] pm [dot] me**. Include:
 
 - A description of the vulnerability and its potential impact.
 - Steps to reproduce or a proof-of-concept (if safe to share).
