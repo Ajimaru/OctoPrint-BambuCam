@@ -123,7 +123,7 @@ jobs:
         continue-on-error: true
         run: |
           pip install "bandit==${{ env.BANDIT_VERSION }}"
-          bandit -r octoprint_bambucam -x .venv,venv,.git -ll
+          bandit -r octoprint_bambucam -x .venv,venv,.git,octoprint_bambucam/vendor -ll
 
       - # Print summary
         name: Summary

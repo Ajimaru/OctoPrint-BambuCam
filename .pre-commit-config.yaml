@@ -78,7 +78,7 @@ repos:
     rev: 1.9.3
     hooks:
       - id: bandit # Security-focused static analyzer for Python (Bandit)
-        args: ["-x", "tests,.venv,venv,.git", "-ll"]
+        args: ["-x", "tests,.venv,venv,.git,octoprint_bambucam/vendor", "-ll"]
 
   - repo: https://github.com/djlint/djlint
     rev: v1.36.4
