@@ -8,10 +8,10 @@
 
 ## Files
 
-| File | Origin | SHA-256 (as downloaded, before local patches) |
-| --- | --- | --- |
-| `webcam.py` | upstream verbatim + local patches below | `34c80fab6aad78c582ab0e5859ab8c4164f8cec1387340c6a361b7c1e793cac6` |
-| `LICENSE` | upstream verbatim (GPL-3.0) | `3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986` |
+| File                        | Origin                                                 | SHA-256 (as downloaded, before local patches)                      |
+| --------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------ |
+| `webcam.py`                 | upstream verbatim + local patches below                | `34c80fab6aad78c582ab0e5859ab8c4164f8cec1387340c6a361b7c1e793cac6` |
+| `LICENSE`                   | upstream verbatim (GPL-3.0)                            | `3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986` |
 | `SourceCodePro-Regular.ttf` | upstream verbatim (`--showfps` watermark; see patch 4) | `74bd80d3e42a08517cd7e1108ba3d86f2da29ac0f3065be95e0357956ab9db37` |
 
 ## Authors / credits

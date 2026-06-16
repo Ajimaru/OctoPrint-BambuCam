@@ -23,6 +23,7 @@
 [badge-release]: https://img.shields.io/github/v/release/Ajimaru/OctoPrint-BambuCam?style=flat-square&sort=semver
 [badge-downloads]: https://img.shields.io/github/downloads/Ajimaru/OctoPrint-BambuCam/total.svg?style=flat-square
 [badge-love]: https://img.shields.io/badge/made_with-%E2%9D%A4%EF%B8%8F-ff69b4?style=flat-square
+
 [![71% Vibe Coded](https://img.shields.io/badge/71%25-Vibe_Coded-ff69b4?style=flat-square&logo=claude&logoColor=white)](https://github.com/ai-ecoverse/vibe-coded-badge-action)
 
 > [!NOTE]
