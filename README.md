@@ -24,16 +24,16 @@
 [badge-downloads]: https://img.shields.io/github/downloads/Ajimaru/OctoPrint-BambuCam/total.svg?style=flat-square
 [badge-love]: https://img.shields.io/badge/made_with-%E2%9D%A4%EF%B8%8F-ff69b4?style=flat-square
 
+### Live camera stream from Bambu Lab printers — inside OctoPrint
+
+[![71% Vibe_Coded](https://img.shields.io/badge/71%25-Vibe_Coded-ff69b4?style=flat-square&logo=claude&logoColor=white)](https://github.com/ai-ecoverse/vibe-coded-badge-action)
+
 > [!NOTE]
 > **About this project.** I built this for my own printer setup with AI, and if
 > it helps others, even better. I have tested it to the best of my knowledge and
 > ability, and every change is backed by an automated test suite, CI, and
 > security scans (Bandit, CodeQL). Disclosed here per the OctoPrint plugin guidelines.
 > Issues and PRs are welcome.
-
-### Live camera stream from Bambu Lab printers — inside OctoPrint
-
-[![71% Vibe_Coded](https://img.shields.io/badge/71%25-Vibe_Coded-ff69b4?style=flat-square&logo=claude&logoColor=white)](https://github.com/ai-ecoverse/vibe-coded-badge-action)
 
 ## Highlights
 
