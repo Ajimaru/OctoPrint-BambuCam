@@ -25,6 +25,10 @@ msgstr ""
 msgid "Request failed."
 msgstr ""
 
+#: octoprint_bambucam/static/js/BambuCam.js:332
+msgid "Printer is offline — reconnecting automatically."
+msgstr ""
+
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:2
 msgid "BambuCam"
 msgstr ""
@@ -181,94 +185,94 @@ msgstr ""
 msgid "Width"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:167
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:178
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:166
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:176
 msgid "Only used when 'Override resolution' is enabled."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:171
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:170
 msgid "Height"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:181
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:179
 msgid "Image"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:183
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:181
 msgid "Rotation (degrees)"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:190
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:188
 msgid "1-359 degrees, -1 disables rotation."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:194
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:192
 msgid "Capture pause (seconds)"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:201
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:199
 msgid "Pause between captured frames (--encodewait). Default 0.5."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:209
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:207
 msgid "Show activity dot (red dot every other frame)"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:214
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:212
 msgid "Show FPS watermark (costs CPU)"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:218
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:216
 msgid "Daemon"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:224
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:222
 msgid "Automatically restart the stream server after crashes"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:229
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:227
 msgid "Log HTTP requests of the stream server (debug)"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:234
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:232
 msgid "Max restarts"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:241
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:238
 msgid ""
 "Give up auto-restarting after this many crashes within the restart window. "
 "Only used when auto-restart is enabled."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:245
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:242
 msgid "Restart window (seconds)"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:252
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:248
 msgid ""
 "Time window over which the crash count is measured. Only used when auto-"
 "restart is enabled."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:255
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:251
 msgid "Diagnostics"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:261
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:257
 msgid "Query stream server (/?info)"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:265
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:261
 msgid ""
 "Fetches live stats from the local stream server (the access code is never "
 "returned). The server must be running."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:276
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:272
 msgid "Powered by"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:279
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:275
 msgid "by Igor Maculan, Christopher RYU, Shell Shrader and disconn3ct."
 msgstr ""
 

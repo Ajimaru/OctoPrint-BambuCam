@@ -11,7 +11,9 @@ explains the design.
 - **Log pumping** — child `stdout`/`stderr` is forwarded into the plugin logger,
   with `--loghttp` request lines routed to a separate rotating HTTP log file.
 - **Watchdog** — restarts the daemon after unexpected exits with exponential
-  backoff, giving up after too many crashes in a window.
+  backoff, giving up after too many crashes in a window. A printer that is
+  **offline** (powered off / unreachable) is treated as an expected state, not a
+  crash — see [Printer-offline handling](#printer-offline-handling).
 
 ## Working directory
 
@@ -36,7 +38,9 @@ new one is spawned.
 ## Backoff & give-up policy
 
 ```text
-unexpected exit
+process exit
+   ├─ exit code 75 (printer offline) ──────► "offline" ► reconnect after 30s
+   │        (does NOT count against max_restarts, never gives up)
    ├─ autorestart == False ───────────────► stop
    ├─ crashes within restart_window ≤ max ─► sleep(backoff) ► respawn
    │        backoff: 2s → 4s → … capped at 60s
@@ -46,12 +50,39 @@ unexpected exit
 
 Defaults: `max_restarts = 5`, `restart_window = 300 s`.
 
+## Printer-offline handling
+
+A printer that is powered off or otherwise unreachable is a normal, expected
+condition — not a crash — so it is handled separately from the backoff/give-up
+policy above.
+
+`webcam.py` distinguishes the two cases by **exit code**:
+
+| Exit code          | Meaning                       | Watchdog reaction                    |
+| ------------------ | ----------------------------- | ------------------------------------ |
+| `75` (EX_TEMPFAIL) | Printer unreachable (offline) | Reconnect at a fixed 30 s interval   |
+| `70` (EX_SOFTWARE) | Any other unexpected failure  | Normal crash path (backoff, give-up) |
+
+When the printer is unreachable, `webcam.py` first retries a few times
+internally (absorbing brief outages and reboots) while serving a **"Printer
+Offline"** placeholder frame on the MJPEG stream — so the browser and any
+`ffmpeg` consumer keep receiving a valid image instead of a frozen last frame or
+a torn-down stream. If the printer stays unreachable it exits with `75`.
+
+The watchdog then treats `75` specially: it emits an `offline` state and
+respawns after a calm fixed interval (30 s) **without** counting the exit
+against `max_restarts` and **without** ever giving up. The stream therefore
+recovers automatically once the printer comes back online. Setting
+`autorestart = False` disables this reconnect as well.
+
 ## State notifications
 
-On `started`, `stopped`, `crashed`, and `gave_up`, the manager invokes the
-`on_state_change(state, detail)` callback. The plugin forwards these to the
-browser via `send_plugin_message`, where the frontend shows a `PNotify` on
-`gave_up` and reloads the stream on `started`.
+On `started`, `stopped`, `crashed`, `offline`, and `gave_up`, the manager
+invokes the `on_state_change(state, detail)` callback. The plugin forwards these
+to the browser via `send_plugin_message`, where the frontend reloads the stream
+on `started`, shows an error `PNotify` on `gave_up`, and an informational
+`PNotify` on `offline` (since an offline printer is expected and recovers on its
+own).
 
 ## Connection probe
 

@@ -795,6 +795,85 @@ class TestWatchdog:
         m._watchdog(proc, 1)
         cb.assert_any_call("crashed", {"returncode": 2})
 
+    def test_offline_exit_notifies_offline_not_crashed(
+        self, manager_with_callback, valid_config
+    ):
+        """Exit code 75 (printer offline) fires 'offline', never 'crashed'."""
+        m, cb = manager_with_callback
+        proc = MagicMock()
+        proc.poll.return_value = 75
+        m._generation = 1
+        m._config = dict(valid_config, autorestart=True)
+        m._started_at = time.monotonic()
+
+        with patch("time.sleep"):
+            with patch.object(m, "_spawn", return_value=(True, None)):
+                m._watchdog(proc, 1)
+
+        states = [c.args[0] for c in cb.call_args_list]
+        assert "offline" in states
+        assert "crashed" not in states
+        assert "gave_up" not in states
+
+    def test_offline_exit_does_not_count_against_max_restarts(
+        self, manager, valid_config
+    ):
+        """A printer-offline exit must not consume the restart budget."""
+        proc = MagicMock()
+        proc.poll.return_value = 75
+        manager._generation = 1
+        manager._config = dict(
+            valid_config, autorestart=True, max_restarts=5, restart_window=300
+        )
+        manager._started_at = time.monotonic()
+        # pre-load the window with crashes that would trip giving-up if counted
+        now = time.monotonic()
+        manager._restart_timestamps = [now, now, now, now, now]
+
+        with patch("time.sleep"):
+            with patch.object(
+                manager, "_spawn", return_value=(True, None)
+            ) as mock_spawn:
+                manager._watchdog(proc, 1)
+
+        # offline path reconnects via _spawn without touching the crash budget
+        mock_spawn.assert_called_once()
+        assert manager._restart_timestamps == [now, now, now, now, now]
+        assert manager._last_error is None
+
+    def test_offline_exit_no_reconnect_when_autorestart_off(
+        self, manager, valid_config
+    ):
+        """With autorestart disabled, an offline exit does not respawn."""
+        proc = MagicMock()
+        proc.poll.return_value = 75
+        manager._generation = 1
+        manager._config = dict(valid_config, autorestart=False)
+        manager._started_at = time.monotonic()
+
+        with patch("time.sleep"):
+            with patch.object(manager, "_spawn") as mock_spawn:
+                manager._watchdog(proc, 1)
+
+        mock_spawn.assert_not_called()
+
+    def test_real_crash_exit_code_70_uses_crash_path(
+        self, manager_with_callback, valid_config
+    ):
+        """Exit code 70 (EX_SOFTWARE) is a real crash, not an offline state."""
+        m, cb = manager_with_callback
+        proc = MagicMock()
+        proc.poll.return_value = 70
+        m._generation = 1
+        m._config = dict(valid_config, autorestart=False)
+        m._started_at = time.monotonic()
+
+        m._watchdog(proc, 1)
+
+        states = [c.args[0] for c in cb.call_args_list]
+        assert "crashed" in states
+        assert "offline" not in states
+
     def test_gave_up_after_max_restarts(
         self, manager_with_callback, valid_config
     ):

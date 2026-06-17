@@ -20,9 +20,19 @@ marked **↻** trigger a daemon restart when changed (they are members of
 | `showfps`             | `False`     | ✅  | Overlay measured FPS watermark (`--showfps`).                 |
 | `loghttp`             | `False`     | ✅  | Log HTTP requests to a dedicated rotating file (`--loghttp`). |
 | `encodewait`          | `0.5`       | ✅  | Encode loop wait passed to `--encodewait`.                    |
-| `autorestart`         | `True`      | ✅  | Restart the daemon after unexpected exits.                    |
-| `max_restarts`        | `5`         | ✅  | Max restarts allowed within `restart_window`.                 |
-| `restart_window`      | `300`       | ✅  | Sliding window (seconds) for counting restarts.               |
+| `autorestart`         | `True`      | ✅  | Restart after crashes; also enables offline reconnect.        |
+| `max_restarts`        | `5`         | ✅  | Max crashes allowed within `restart_window`.                  |
+| `restart_window`      | `300`       | ✅  | Sliding window (seconds) for counting crashes.                |
+
+!!! note "Printer offline is not a crash"
+When the printer is powered off or unreachable, the daemon exits with a
+distinct code and the supervisor reconnects on a calm fixed interval (30 s)
+**without** counting it against `max_restarts`/`restart_window` and without
+ever giving up — the stream shows a "Printer Offline" frame and recovers
+automatically once the printer returns. `max_restarts` and `restart_window`
+therefore only ever bound _real_ crashes. Disabling `autorestart` also
+disables this reconnect. See
+[Printer-offline handling](../architecture/daemon.md#printer-offline-handling).
 
 ## Restricted paths
 

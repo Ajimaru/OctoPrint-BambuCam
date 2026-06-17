@@ -40,6 +40,19 @@
    never negotiated. Closes CodeQL `py/insecure-protocol`. Cert/hostname
    verification stays disabled (printer uses a self-signed cert + custom
    handshake).
+6. An unreachable printer (powered off / off the network) is treated as a
+   transient offline state instead of a fatal error. The connect loop catches
+   the `OSError`/timeout from `socket.create_connection`, renders a
+   "Printer Offline" placeholder frame (via the `buildOfflineImage` helper,
+   reusing the bundled PIL + font — no new asset), pauses, and retries a bounded
+   number of times (`MAX_OFFLINE_RETRIES`) before exiting. The connect uses a
+   10 s timeout so an unreachable printer is detected promptly.
+7. Exit codes now distinguish "printer offline" from "real crash": a printer
+   that stays unreachable exits with `EX_TEMPFAIL` (75); any other unexpected
+   exception exits with `EX_SOFTWARE` (70). The OctoPrint plugin's watchdog
+   (`daemon.py`) treats 75 as expected — it reconnects at a calm fixed interval
+   without counting against `max_restarts` or ever "giving up" — while 70 (and
+   other non-zero codes) follow the normal backoff + giving-up crash path.
 
 No other modifications. When updating to a newer upstream commit, re-apply all
 patches and update the pinned commit, date, and hashes above.
