@@ -41,6 +41,9 @@
   Control tab
 - 🔄 **Auto-managed Daemon** — Starts, restarts on crash, and reconfigures
   without any manual setup
+- 🔌 **Offline-resilient** — When the printer is powered off the stream shows a
+  "Printer Offline" frame and reconnects automatically once it is back, without
+  tripping the crash limit
 - 📸 **Snapshot & Timelapse** — Full `WebcamProviderPlugin` integration for
   OctoPrint's built-in timelapse engine
 - 🧪 **Connection Test** — Verify IP and access code before saving settings

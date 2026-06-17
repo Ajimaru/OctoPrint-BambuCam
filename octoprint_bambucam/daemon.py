@@ -28,6 +28,15 @@ WEBCAM_SCRIPT = os.path.join(VENDOR_DIR, "webcam.py")
 _BACKOFF_INITIAL = 2.0
 _BACKOFF_MAX = 60.0
 
+# webcam.py exits with EX_TEMPFAIL (75) when the printer is unreachable (e.g.
+# powered off) — an expected, transient state, not a crash. The watchdog treats
+# this exit specially: it does NOT count against max_restarts/restart_window and
+# never triggers "giving up". Instead it reconnects forever at a fixed, calm
+# interval so the stream returns automatically once the printer comes back. Any
+# other non-zero exit is a real crash and uses the backoff + giving-up path.
+_EXIT_PRINTER_OFFLINE = 75
+_OFFLINE_RECONNECT_INTERVAL = 30.0
+
 # webcam.py's --loghttp lines look like "<ISO datetime>: <ip> <message>"
 # (see WebRequestHandler.log_message); match that prefix to route them to the
 # dedicated HTTP log file instead of the main plugin log.
@@ -383,11 +392,39 @@ class WebcamdManager:
                 time.sleep(1)
                 continue
 
-            # our process exited; claim the crash only if we're still current
+            # our process exited; claim it only if we're still current
             with self._lock:
                 if generation != self._generation or self._stop_requested:
                     return
                 self._process = None
+
+            # printer offline (powered off / unreachable): expected, not a
+            # crash. Don't count it against max_restarts and don't ever give up;
+            # reconnect at a calm fixed interval so the stream comes back by
+            # itself once the printer returns. autorestart still gates it so a
+            # user who disabled restarts gets no reconnect at all.
+            if returncode == _EXIT_PRINTER_OFFLINE:
+                self._logger.info(
+                    "webcamd exited because the printer is unreachable "
+                    "(offline); reconnecting in %.0f s",
+                    _OFFLINE_RECONNECT_INTERVAL,
+                )
+                self._notify("offline", {"returncode": returncode})
+                if not self._config.get("autorestart", True):
+                    return
+                time.sleep(_OFFLINE_RECONNECT_INTERVAL)
+                with self._lock:
+                    if generation != self._generation or self._stop_requested:
+                        return
+                    ok, error = self._spawn()
+                    if not ok:
+                        self._last_error = error
+                        self._logger.error(
+                            "webcamd reconnect failed: %s", error
+                        )
+                        return
+                    # _spawn started a fresh watchdog; retire this one
+                    return
 
             self._logger.warning(
                 "webcamd exited unexpectedly with code %s", returncode

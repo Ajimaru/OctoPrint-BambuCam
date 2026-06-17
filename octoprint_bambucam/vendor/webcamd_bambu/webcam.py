@@ -43,6 +43,50 @@ encodeFps = 0.0
 streamFps = {}
 snapshots = 0
 
+
+# OctoPrint-BambuCam patch: build a "Printer Offline" placeholder frame so the
+# MJPEG stream keeps serving something meaningful while the printer is
+# unreachable (e.g. powered off) instead of freezing on the last real frame or
+# tearing the stream down. Rendered with the already-bundled PIL + font so no
+# extra asset is needed. The last real frame is dimmed and used as a backdrop
+# when available, otherwise a plain dark canvas.
+def buildOfflineImage(background=None):
+    width, height = 1920, 1080
+    if background is not None:
+        try:
+            canvas = background.convert('RGB').copy()
+            width, height = canvas.size
+            # dim the stale frame so the overlay reads clearly and it is
+            # obvious the picture is not live
+            canvas = Image.eval(canvas, lambda px: px // 3)
+        except Exception:
+            canvas = Image.new('RGB', (width, height), (20, 20, 24))
+    else:
+        canvas = Image.new('RGB', (width, height), (20, 20, 24))
+
+    draw = ImageDraw.Draw(canvas)
+    try:
+        title_font = ImageFont.truetype(FONT_PATH, max(28, height // 18))
+        sub_font = ImageFont.truetype(FONT_PATH, max(16, height // 40))
+    except Exception:
+        title_font = ImageFont.load_default()
+        sub_font = title_font
+
+    title = "Printer Offline"
+    subtitle = datetime.datetime.now().strftime("since %Y-%m-%d %H:%M:%S")
+
+    tb = draw.textbbox((0, 0), title, font=title_font)
+    draw.text(
+        ((width - (tb[2] - tb[0])) / 2, height / 2 - (tb[3] - tb[1])),
+        title, font=title_font, fill="#E34234",
+    )
+    sb = draw.textbbox((0, 0), subtitle, font=sub_font)
+    draw.text(
+        ((width - (sb[2] - sb[0])) / 2, height / 2 + (tb[3] - tb[1])),
+        subtitle, font=sub_font, fill="#CCCCCC",
+    )
+    return canvas
+
 class WebRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         global exitCode
@@ -382,6 +426,15 @@ def main():
 
     MAX_CONNECT_ATTEMPTS = 3
     MAX_READ_TIMEOUTS    = 10
+    # OctoPrint-BambuCam patch: tolerate a printer that is unreachable (e.g.
+    # powered off). Instead of exiting on the first failed connect, retry a few
+    # times with a short pause while showing a "Printer Offline" frame. This
+    # absorbs brief outages / reboots; a longer outage exits with EX_TEMPFAIL so
+    # the plugin's watchdog takes over the slow reconnect (it treats 75 as
+    # "offline, expected" rather than a crash). See vendor/UPSTREAM.md.
+    MAX_OFFLINE_RETRIES  = 5
+    OFFLINE_RETRY_WAIT   = 5.0
+    offline_retries = 0
 
     auth_data = bytearray()
     connect_attempts = 0
@@ -427,10 +480,14 @@ def main():
     # Bytes payload_size-2:payload_size = jpeg_end magic bytes
     #
     # Further attempts to receive data will get SSLWantReadError until a new image is ready (1-2 seconds later)
-    while connect_attempts < MAX_CONNECT_ATTEMPTS and not webserver is None and webserver.isRunning():
+    while connect_attempts < MAX_CONNECT_ATTEMPTS and offline_retries <= MAX_OFFLINE_RETRIES and not webserver is None and webserver.isRunning():
         try:
             print(f"{datetime.datetime.now()}: creating socket", flush=True)
-            with socket.create_connection((hostname, port)) as sock:
+            # OctoPrint-BambuCam patch: short timeout so an unreachable printer
+            # is detected promptly instead of blocking on the OS default.
+            with socket.create_connection((hostname, port), timeout=10) as sock:
+                # a successful connect clears the offline state
+                offline_retries = 0
                 connect_attempts += 1
                 sslSock = ctx.wrap_socket(sock, server_hostname=hostname)
                 sslSock.write(auth_data)
@@ -517,10 +574,34 @@ def main():
 
         except ConnectionResetError:
             print(f"{datetime.datetime.now()}: Connection Reset", flush=True)
-            
+
+        # OctoPrint-BambuCam patch: an unreachable printer (powered off / not on
+        # the network) raises OSError here. Treat it as a transient offline
+        # state: show a "Printer Offline" frame, pause, and retry a bounded
+        # number of times before giving the connection back to the plugin
+        # watchdog via EX_TEMPFAIL. This stops a powered-off printer from
+        # tearing the stream down on the very first failed connect.
+        except (socket.timeout, OSError) as e:
+            offline_retries += 1
+            print(
+                f"{datetime.datetime.now()}: printer unreachable "
+                f"({e}); offline retry {offline_retries}/{MAX_OFFLINE_RETRIES}",
+                flush=True,
+            )
+            # Publish the placeholder by swapping lastImage only; the HTTP
+            # stream thread reads it independently. We must NOT touch
+            # encoderLock here — it is only released when a stream client
+            # connects (see addSession), so acquiring it with no client
+            # attached would deadlock this loop.
+            lastImage = buildOfflineImage(lastImage)
+            if offline_retries > MAX_OFFLINE_RETRIES:
+                exitCode = os.EX_TEMPFAIL
+                break
+            time.sleep(OFFLINE_RETRY_WAIT)
+
         except Exception as e:
             print(f"{datetime.datetime.now()}: {traceback.format_exc()}", flush=True)
-            exitCode = os.EX_TEMPFAIL
+            exitCode = os.EX_SOFTWARE
             break
 
     if not webserver is None and webserver.isRunning():

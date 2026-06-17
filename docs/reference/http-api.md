@@ -72,4 +72,9 @@ The plugin pushes `daemon_state` events over OctoPrint's data updater:
 { "type": "daemon_state", "state": "gave_up", "detail": { "error": "..." } }
 ```
 
-`state` is one of `started`, `stopped`, `crashed`, `gave_up`.
+`state` is one of `started`, `stopped`, `crashed`, `offline`, `gave_up`.
+
+The `offline` state is pushed when the printer is unreachable (powered off);
+the daemon reconnects automatically, so it is informational rather than an
+error. Its `detail` carries the child `returncode` (`75`). See
+[Printer-offline handling](../architecture/daemon.md#printer-offline-handling).

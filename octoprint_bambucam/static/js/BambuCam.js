@@ -302,9 +302,9 @@ $(function () {
         };
 
         /**
-         * Data-updater handler for `daemon_state` push messages: shows a
-         * PNotify on `gave_up`, reloads the stream on `started`, and refreshes
-         * the status panel.
+         * Data-updater handler for `daemon_state` push messages: shows an
+         * error PNotify on `gave_up`, an info PNotify on `offline`, reloads the
+         * stream on `started`, and refreshes the status panel.
          *
          * @memberof BambucamViewModel
          * @param {string} plugin - Originating plugin identifier.
@@ -321,6 +321,19 @@ $(function () {
                     text: data.detail.error,
                     type: "error",
                     hide: false,
+                });
+            } else if (data.state === "offline") {
+                // Printer unreachable (e.g. powered off): expected, not an
+                // error. The daemon keeps reconnecting on its own and the
+                // stream shows a "Printer Offline" frame, so just inform.
+                self.lastError("");
+                new PNotify({
+                    title: "BambuCam",
+                    text: gettext(
+                        "Printer is offline — reconnecting automatically.",
+                    ),
+                    type: "info",
+                    hide: true,
                 });
             } else if (data.state === "started") {
                 self.lastError("");
