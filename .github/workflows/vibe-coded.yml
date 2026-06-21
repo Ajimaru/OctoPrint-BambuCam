@@ -28,7 +28,7 @@ jobs:
         # rejected by the protected branch. Falls back to GITHUB_TOKEN if the
         # secret is unset (push will then be skipped, not fail the run).
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ secrets.VIBE_BADGE_TOKEN || secrets.GITHUB_TOKEN }}
