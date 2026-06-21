@@ -1,4 +1,4 @@
 # Documentation build dependencies (MkDocs Material + mkdocstrings).
 mkdocs>=1.6
 mkdocs-material>=9.5
-mkdocstrings[python]>=0.25
+mkdocstrings[python]>=0.30.1
