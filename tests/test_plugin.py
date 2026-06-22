@@ -177,6 +177,7 @@ class TestGetSettingsDefaults:
         defaults = plugin.get_settings_defaults()
         expected = {
             "enabled",
+            "config_source",
             "hostname",
             "access_code",
             "port",
@@ -193,6 +194,13 @@ class TestGetSettingsDefaults:
             "autorestart",
             "max_restarts",
             "restart_window",
+            "download_suffix",
+            "transcode_to_mp4",
+            "auto_sync",
+            "auto_sync_delay",
+            "auto_sync_action",
+            "auto_sync_measure",
+            "print_dates",
         }
         assert set(defaults.keys()) == expected
 
@@ -312,16 +320,27 @@ class TestIsTemplateAutoescaped:
 class TestGetTemplateConfigs:
     """get_template_configs() advertises OctoPrint template extensions."""
 
-    def test_two_templates(self, plugin):
-        """Exactly two template entries are registered."""
+    def test_three_templates(self, plugin):
+        """The settings, webcam and timelapse-tab entries are registered."""
         configs = plugin.get_template_configs()
-        assert len(configs) == 2
+        assert len(configs) == 3
 
     def test_settings_template(self, plugin):
-        """Both 'settings' and 'webcam' template types are advertised."""
+        """'settings', 'webcam' and 'tab' template types are advertised."""
         types_ = [c["type"] for c in plugin.get_template_configs()]
         assert "settings" in types_
         assert "webcam" in types_
+        assert "tab" in types_
+
+
+class TestTimelapseExtensionsHook:
+    """get_timelapse_extensions() teaches the native tab to list .avi."""
+
+    def test_returns_avi(self, plugin):
+        """The hook adds 'avi' so copied Bambu timelapses show in the tab."""
+        exts = plugin.get_timelapse_extensions()
+        assert isinstance(exts, list)
+        assert "avi" in exts
 
 
 # ---------------------------------------------------------------------------
@@ -537,7 +556,7 @@ class TestOnApiGet:
         perms_mod.Permissions.SETTINGS.can = MagicMock(return_value=True)
 
         with self._ctx():
-            response = plugin.on_api_get(MagicMock())
+            response = plugin.on_api_get(flask.request)
         data = response.get_json()
         assert data["running"] is True
         assert "stream_url" in data

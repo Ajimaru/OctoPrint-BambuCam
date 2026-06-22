@@ -39,15 +39,27 @@
 
 - 📷 **Live MJPEG Stream** — Camera of P1P / P1S / A1 / A1 mini in OctoPrint's
   Control tab
-- 🔄 **Auto-managed Daemon** — Starts, restarts on crash, and reconfigures
-  without any manual setup
+- 🎞️ **SD-card Timelapse Manager** — List, copy, move and delete the printer's
+  own timelapse videos over FTPS from a dedicated tab, with thumbnails,
+  multi-select, progress/ETA, and automatic `.avi` → `.mp4` conversion (see
+  [Manage SD-card timelapses](#manage-sd-card-timelapses))
+- 🤖 **Auto-sync after a print** — Optionally pull the new timelapse
+  automatically once the print finishes and the system is idle (printer done,
+  OctoPrint's own render finished) — copy or move, your choice
+- 📸 **Snapshot & Timelapse** — Full `WebcamProviderPlugin` integration for
+  OctoPrint's built-in timelapse engine
+- 💡 **Light toggle** — Switch the printer's light on/off from a button over the
+  live stream (requires Bambu Connector — see [Compatibility](#compatibility))
 - 🔌 **Offline-resilient** — When the printer is powered off the stream shows a
   "Printer Offline" frame and reconnects automatically once it is back, without
   tripping the crash limit
-- 📸 **Snapshot & Timelapse** — Full `WebcamProviderPlugin` integration for
-  OctoPrint's built-in timelapse engine
-- 🧪 **Connection Test** — Verify IP and access code before saving settings
+- 🔗 **Auto-config from Bambu Connector** — If
+  [OctoPrint-BambuConnector](https://github.com/OctoPrint/OctoPrint-BambuConnector)
+  is set up, reuse its printer IP and access code instead of entering them twice
+- 🔄 **Auto-managed Daemon** — Starts, restarts on crash, and reconfigures
+  without any manual setup
 - 🔃 **Rotation & Overlays** — Image rotation, FPS watermark, and activity dot
+- 🧪 **Connection Test** — Verify IP and access code before saving settings
 - 🔒 **Security Hardened** — Access code never exposed via daemon HTTP;
   unauthenticated shutdown endpoint disabled
 - 🌐 **Reverse-Proxy Ready** — Stream URL override for setups behind nginx / Caddy
@@ -58,18 +70,67 @@
 
 <!-- markdownlint-disable MD013 -->
 
-| Series       | Supported | Notes                                                    |
-| ------------ | :-------: | -------------------------------------------------------- |
-| P1P / P1S    |    ✅     | LAN mode, access code required                           |
-| A1 / A1 mini |    ✅     | LAN mode, access code required                           |
-| X1 / X1C     |    ❌     | Uses RTSPS (port 322), different protocol — out of scope |
+| Series    | Camera stream | Timelapse manager (FTPS) | Light toggle (MQTT) | Tested |
+| --------- | :-----------: | :----------------------: | :-----------------: | :----: |
+| A1 mini   |      ✅       |            ✅            |         ✅          |   ✅   |
+| A1        |      ✅       |            ✅            |         ⚠️          |   —    |
+| P1P / P1S |      ✅       |            ✅            |         ⚠️          |   —    |
+| X1 / X1C  |      ❌       |            ⚠️            |         ⚠️          |   —    |
 
 <!-- markdownlint-enable MD013 -->
+
+Legend: ✅ works · ⚠️ should work but **untested** on that model · ❌ not
+supported. All printers need **LAN mode** with
+the access code from the printer's _Network_ settings.
 
 > **Note:** The printer camera delivers roughly **0.5–2 FPS** by design — that
 > is a limitation of the printer firmware, not the plugin. If Bambu Studio or
 > the Bambu Handy app is watching the camera simultaneously, the connection may
 > fail.
+
+## Compatibility
+
+BambuCam requires **OctoPrint ≥ 1.10.0**.
+
+<!-- markdownlint-disable MD033 -->
+<details>
+<summary>OctoPrint 1.x vs. 2.0 — feature breakdown</summary>
+</br>
+
+Almost everything works on the
+OctoPrint 1.x series in **manual mode** (you type the printer IP and access
+code yourself). Two convenience features build on
+[OctoPrint-BambuConnector](https://github.com/OctoPrint/OctoPrint-BambuConnector),
+which is part of OctoPrint's 2.0 connector architecture, so they are only
+available on **OctoPrint 2.0+ with Bambu Connector set up**.
+
+<!-- markdownlint-disable MD013 -->
+
+| Feature                                              | OctoPrint 1.x | OctoPrint 2.0 + Bambu Connector |
+| ---------------------------------------------------- | :-----------: | :-----------------------------: |
+| Live MJPEG stream & snapshot                         |      ✅       |               ✅                |
+| Auto-managed daemon (restart / offline-resilient)    |      ✅       |               ✅                |
+| WebcamProvider (multicam) integration                |      ✅       |               ✅                |
+| Manual configuration (IP + access code)              |      ✅       |               ✅                |
+| Connection test                                      |      ✅       |               ✅                |
+| SD-card timelapse list / thumbnails                  |      ✅       |               ✅                |
+| Copy / move / delete timelapses (FTPS)               |      ✅       |               ✅                |
+| `.avi` → `.mp4` transcode + ffmpeg indicator         |      ✅       |               ✅                |
+| Convert local `.avi` files                           |      ✅       |               ✅                |
+| Auto-sync after a print (`MovieDone`)                |      ✅       |               ✅                |
+| Rotation, FPS watermark, activity dot                |      ✅       |               ✅                |
+| **Auto-config** (reuse Connector IP / access code)   |      ❌       |               ✅                |
+| **Light toggle** (needs the printer serial via MQTT) |      ❌       |               ✅                |
+
+<!-- markdownlint-enable MD013 -->
+
+On OctoPrint 1.x the two unavailable features degrade gracefully: the
+**Configuration** dropdown stays on `Manual` (the `Auto` option is disabled),
+and the light button is hidden. Nothing errors — you just configure the printer
+manually and lose the LED control.
+
+</details>
+<!-- markdownlint-enable MD033 -->
 
 ## Installation
 
@@ -104,21 +165,37 @@ The `releases/latest` URL always points to the newest stable release.
 
 ## Configuration
 
-Open **Settings → Plugins → BambuCam** and fill in:
+Open **Settings → Plugins → BambuCam**, enter the printer IP and access code
+(or pick **Auto** when Bambu Connector is set up), and hit **Test connection**.
+Everything else has sensible defaults and is optional.
+
+<!-- markdownlint-disable MD033 -->
+<details>
+<summary>Required &amp; optional settings</summary>
+</br>
 
 | Setting                   | Description                                      |
 | ------------------------- | ------------------------------------------------ |
+| **Configuration**         | `Manual` (type the values) or `Auto`.            |
 | **Printer IP / hostname** | LAN address, e.g. `192.168.1.100`.               |
 | **Access code**           | Shown on printer display under _Network_ config. |
 
 Use **Test connection** to verify both values before saving.
+
+> 💡 If [OctoPrint-BambuConnector](https://github.com/OctoPrint/OctoPrint-BambuConnector)
+> is installed and configured, choose **Configuration → Auto** to reuse its
+> printer IP and access code instead of entering them twice. The fields then
+> show those values read-only. If it is not available, BambuCam stays on manual
+> entry.
+
+<!-- separate blockquotes -->
 
 > ⚠️ The bundled MJPEG server has **no authentication**. With
 > `bind_address = 0.0.0.0`, anyone on your network can watch the camera stream.
 > Use `127.0.0.1` (default) unless you need browser live view and have a reverse
 > proxy in place.
 
-### Optional settings
+<h4>Optional settings</h4>
 
 <!-- markdownlint-disable MD013 -->
 
@@ -135,28 +212,64 @@ Use **Test connection** to verify both values before saving.
 | Auto-restart        | on          | Automatically restart the daemon on crash.         |
 | Max restarts        | `5`         | Max restarts within the restart window.            |
 | Restart window      | `300 s`     | Time window for counting restarts.                 |
+| Filename suffix     | _(empty)_   | Appended to downloaded timelapse names.            |
+| Convert to `.mp4`   | on          | Re-encode copied `.avi` to playable `.mp4`.        |
+| Auto-sync           | off         | Pull new timelapses automatically after a print.   |
+| Auto-pull action    | `copy`      | `copy` (keep on SD) or `move` (delete from SD).    |
+| Delay after print   | `60 s`      | Wait before checking the SD card for the new file. |
 
 <!-- markdownlint-enable MD013 -->
 
+</details>
+<!-- markdownlint-enable MD033 -->
+
+## Manage SD-card timelapses
+
+P1/A1 printers record timelapses onto their (micro-)SD card. The **BambuCam
+Timelapse** tab browses and manages them over FTPS — no need to pull the card
+or open Bambu Studio. Each row shows size, date, a clickable preview thumbnail
+and a **✓ Copied** badge; checkboxes allow multi-select with per-file progress.
+
+- **Copy** downloads into OctoPrint's `timelapse` folder (SD original kept).
+- **Move** copies, then deletes the original **only after** a byte-for-byte
+  verify. **Delete** removes from the card after a confirmation.
+- Copied/converted videos appear in OctoPrint's native **Timelapse** tab.
+
+Notes and safety:
+
+- **Automatic `.avi` → `.mp4` conversion (on by default).** Bambu records
+  Motion-JPEG `.avi`, which many players can't open, so copies are re-encoded to
+  H.264 `.mp4` via **OctoPrint's own ffmpeg**. If ffmpeg isn't configured, the
+  `.avi` is kept. Leftover `.avi` (off/skipped/failed) can be converted later
+  from the **"Local .avi files"** section at the bottom of the tab.
+- **Auto-sync (opt-in).** Pull a print's new timelapse automatically once the
+  system is idle — **printer stopped AND OctoPrint done rendering** — so two
+  ffmpeg encodes never overlap. A tunable delay covers the SD-card write.
+- **Move, delete and conversion are blocked while a print is running**; copy is
+  always allowed (read-only). All SD writes are **admin-only**, the access code
+  never appears in any log, and re-copying asks first then saves a numbered copy
+  (`…-1.mp4`).
+
 ## Security notes
 
-- The access code is stored in OctoPrint's settings (admin-restricted) and
-  passed to the daemon on its command line, so it is visible in the local
-  process list.
-- The vendored daemon is patched so that the access code is **never exposed**
-  via its `/?info` endpoint and the unauthenticated `/?shutdown` endpoint is
-  **disabled** (see `octoprint_bambucam/vendor/webcamd_bambu/UPSTREAM.md`).
-- The snapshot and timelapse paths always connect via loopback (`127.0.0.1`)
-  regardless of the bind address setting.
+The access code is never logged or exposed to the browser, printer connections
+run over TLS, and privileged SD-card/light actions are permission-gated. See the
+**[Security model](SECURITY.md#security-model)** in [SECURITY.md](SECURITY.md)
+for the full posture and how to report a vulnerability.
 
 ## How it works
 
-The plugin bundles and supervises
+For the **live stream**, the plugin bundles and supervises
 [webcamd-bambu](https://github.com/disconn3ct/webcamd-bambu) (`bambu` branch),
 a small MJPEG HTTP server that connects to the printer's camera port (TCP 6000,
 TLS) using the LAN access code. BambuCam starts the daemon automatically after
 OctoPrint boots, monitors it, restarts it after crashes, and reconfigures it
 when you change settings.
+
+The other features talk to the printer directly from the plugin, no daemon
+involved: **timelapse management** over FTPS (TCP 990) and the **light toggle**
+over the printer's local MQTT broker (TCP 8883) — both using the same LAN access
+code.
 
 ## Contributing
 

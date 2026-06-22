@@ -8,7 +8,7 @@ authors:
   - Ajimaru
 license: AGPL-3.0-or-later
 
-date: 2026-06-13
+date: 2026-06-21
 
 homepage: https://github.com/Ajimaru/OctoPrint-BambuCam
 source: https://github.com/Ajimaru/OctoPrint-BambuCam
@@ -25,6 +25,8 @@ tags:
   - p1p
   - p1s
   - a1
+  - a1 mini
+  - light
 
 screenshots:
   - url: /assets/img/plugins/BambuCam/stream.png
@@ -61,10 +63,15 @@ tab.
   Control tab
 - **Auto-managed Daemon** — Starts, restarts on crash, and reconfigures without
   any manual setup
+- **SD-card Timelapse Manager** — List, copy, move, delete the printer's
+  timelapses over FTPS, with `.avi` → `.mp4` conversion
+- **Auto-sync** — Pull a print's new timelapse automatically once the system is
+  idle
+- **Light Toggle** — Switch the chamber light from the webcam tab (via
+  OctoPrint-BambuConnector)
 - **Snapshot & Timelapse** — Full `WebcamProviderPlugin` integration for
   OctoPrint's built-in timelapse engine
 - **Connection Test** — Verify IP and access code before saving settings
-- **Rotation & Overlays** — Image rotation, FPS watermark, and activity dot
 - **Security Hardened** — Access code never exposed via daemon HTTP;
   unauthenticated shutdown endpoint disabled
 - **Reverse-Proxy Ready** — Stream URL override for setups behind nginx / Caddy

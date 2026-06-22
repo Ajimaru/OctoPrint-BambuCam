@@ -20,11 +20,17 @@ A run below **90 %** coverage fails.
 
 ## Layout
 
-| File                   | Covers                                        |
-| ---------------------- | --------------------------------------------- |
-| `tests/conftest.py`    | Shared fixtures / mocks.                      |
-| `tests/test_plugin.py` | `BambucamPlugin` mixin behaviour and the API. |
-| `tests/test_daemon.py` | `WebcamdManager` lifecycle, watchdog, probe.  |
+| File                            | Covers                                          |
+| ------------------------------- | ----------------------------------------------- |
+| `tests/conftest.py`             | Shared fixtures / mocks.                        |
+| `tests/test_plugin.py`          | `BambucamPlugin` mixin behaviour and the API.   |
+| `tests/test_daemon.py`          | `WebcamdManager` lifecycle, watchdog, probe.    |
+| `tests/test_timelapse_api.py`   | Timelapse/LED API commands and batch transfers. |
+| `tests/test_ftp.py`             | FTPS client (implicit TLS, list/download).      |
+| `tests/test_mqtt.py`            | MQTT light client and error classification.     |
+| `tests/test_transcode.py`       | ffmpeg `.avi` → `.mp4` transcoder.              |
+| `tests/test_autosync.py`        | After-print auto-sync gating.                   |
+| `tests/test_bambu_connector.py` | Connector auto-config discovery.                |
 
 ## Mocking strategy
 

@@ -24,22 +24,10 @@ import urllib.request
 VENDOR_DIR = os.path.join(os.path.dirname(__file__), "vendor", "webcamd_bambu")
 WEBCAM_SCRIPT = os.path.join(VENDOR_DIR, "webcam.py")
 
-# exponential backoff after unexpected exits, capped
 _BACKOFF_INITIAL = 2.0
 _BACKOFF_MAX = 60.0
-
-# webcam.py exits with EX_TEMPFAIL (75) when the printer is unreachable (e.g.
-# powered off) — an expected, transient state, not a crash. The watchdog treats
-# this exit specially: it does NOT count against max_restarts/restart_window and
-# never triggers "giving up". Instead it reconnects forever at a fixed, calm
-# interval so the stream returns automatically once the printer comes back. Any
-# other non-zero exit is a real crash and uses the backoff + giving-up path.
 _EXIT_PRINTER_OFFLINE = 75
 _OFFLINE_RECONNECT_INTERVAL = 30.0
-
-# webcam.py's --loghttp lines look like "<ISO datetime>: <ip> <message>"
-# (see WebRequestHandler.log_message); match that prefix to route them to the
-# dedicated HTTP log file instead of the main plugin log.
 _HTTP_LOG_RE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?: ")
 
 
@@ -72,23 +60,14 @@ class WebcamdManager:
         self._restart_timestamps = []
         self._watchdog_thread = None
         self._last_error = None
-        # bumped on every stop()/spawn() so a stale watchdog from a previous
-        # process generation can detect it has been superseded and bail out,
-        # preventing two daemons from ever running in parallel
         self._generation = 0
-
         self._config = {}
-
-    # ── public API ────────────────────────────────────────────────────────
 
     def start(self, config):
         """Start the daemon with the given config dict (see plugin settings).
 
         Returns (ok, error_message)."""
-        # Tear down any existing process *outside* the lock (stop() blocks on
-        # process.wait()); this guarantees we never run two daemons in
-        # parallel, e.g. when the port changed and a previous instance is
-        # still alive.
+
         self.stop()
 
         with self._lock:
@@ -188,20 +167,13 @@ class WebcamdManager:
     @staticmethod
     def port_in_use(port, bind_address="127.0.0.1"):
         """Return True if the given port is already bound on the host."""
-        # Probe a concrete address only. A wildcard bind_address ("0.0.0.0" or
-        # "::") means "all interfaces"; we never probe-bind to the wildcard
-        # itself — we fall back to loopback, which is enough to detect whether
-        # the port is already taken on this host.
+
         try:
             is_wildcard = ipaddress.ip_address(bind_address).is_unspecified
         except ValueError:
             is_wildcard = False
         probe_address = "127.0.0.1" if is_wildcard else bind_address
         probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # webcam.py binds with allow_reuse_address (SO_REUSEADDR), so the probe
-        # must too — otherwise a just-stopped daemon's socket lingering in
-        # TIME_WAIT is reported as "in use" and a same-port restart is wrongly
-        # rejected, even though webcam.py itself could rebind it fine.
         probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             probe.bind((probe_address, int(port)))
@@ -227,10 +199,6 @@ class WebcamdManager:
         auth_data += access_code.encode("ascii").ljust(32, b"\x00")
 
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        # Bambu LAN cameras present a self-signed cert and use a custom binary
-        # handshake, so cert/hostname verification is intentionally disabled.
-        # Floor the negotiated protocol at TLS 1.2 (printers support it) so the
-        # legacy TLSv1/1.1 versions are never offered.
         ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
@@ -242,8 +210,6 @@ class WebcamdManager:
                 with ctx.wrap_socket(sock, server_hostname=hostname) as tls:
                     tls.settimeout(timeout)
                     tls.write(auth_data)
-                    # printer sends a 16-byte frame header when auth succeeds,
-                    # closes the connection (empty read) when the code is wrong
                     data = tls.recv(16)
                     if len(data) == 0:
                         return False, "auth_failed"
@@ -254,8 +220,6 @@ class WebcamdManager:
             return False, "unreachable"
         except Exception:
             return False, "error"
-
-    # ── internals ─────────────────────────────────────────────────────────
 
     def _validate(self, config):
         if not config.get("hostname"):
@@ -273,7 +237,6 @@ class WebcamdManager:
     def _build_argv(self, config):
         argv = [
             sys.executable,
-            # unbuffered child stdout so the log pump sees lines immediately
             "-u",
             WEBCAM_SCRIPT,
             "--hostname",
@@ -285,9 +248,7 @@ class WebcamdManager:
             "--v4bindaddress",
             str(config.get("bind_address", "127.0.0.1")),
         ]
-        # Width/height are only forwarded when the user opts in: the printer
-        # streams a fixed frame size and passing a mismatched --width/--height
-        # corrupts the rendered image (renders into a wrongly-sized canvas).
+
         if config.get("override_resolution"):
             width = config.get("width")
             if width:
@@ -312,14 +273,6 @@ class WebcamdManager:
     def _spawn(self):
         argv = self._build_argv(self._config)
         try:
-            # cwd must be the vendor dir: webcam.py loads its watermark font
-            # via a relative path.
-            #
-            # Not a command-injection vector: shell=False (the default),
-            # argv[0] is sys.executable and argv[2] is the constant
-            # WEBCAM_SCRIPT, so the program run is fixed. User-controlled
-            # values (hostname, access_code, …) are passed as separate list
-            # elements — never shell-interpreted.
             process = subprocess.Popen(  # nosec B603 - no shell, fixed argv
                 argv,
                 cwd=VENDOR_DIR,
@@ -340,8 +293,6 @@ class WebcamdManager:
             name="bambucam-logpump",
             daemon=True,
         ).start()
-        # one watchdog per spawn, tied to this generation; superseded watchdogs
-        # exit instead of fighting over self._process
         self._watchdog_thread = threading.Thread(
             target=self._watchdog,
             args=(process, generation),
@@ -363,8 +314,6 @@ class WebcamdManager:
                 line = line.rstrip()
                 if not line:
                     continue
-                # route --loghttp request lines to their own file (if enabled);
-                # everything else (startup/errors) goes to the plugin log
                 if self._http_logger is not None and _HTTP_LOG_RE.match(line):
                     self._http_logger.info(line)
                 else:
@@ -379,30 +328,22 @@ class WebcamdManager:
         what stops parallel daemons from piling up."""
         backoff = _BACKOFF_INITIAL
         while True:
-            # superseded by a newer spawn or an explicit stop → bow out
             if generation != self._generation:
                 return
 
             returncode = process.poll()
             if returncode is None:
-                # healthy run for over a minute resets the backoff
                 uptime = time.monotonic() - (self._started_at or 0)
                 if self._started_at and uptime > 60:
                     backoff = _BACKOFF_INITIAL
                 time.sleep(1)
                 continue
 
-            # our process exited; claim it only if we're still current
             with self._lock:
                 if generation != self._generation or self._stop_requested:
                     return
                 self._process = None
 
-            # printer offline (powered off / unreachable): expected, not a
-            # crash. Don't count it against max_restarts and don't ever give up;
-            # reconnect at a calm fixed interval so the stream comes back by
-            # itself once the printer returns. autorestart still gates it so a
-            # user who disabled restarts gets no reconnect at all.
             if returncode == _EXIT_PRINTER_OFFLINE:
                 self._logger.info(
                     "webcamd exited because the printer is unreachable "
@@ -423,7 +364,6 @@ class WebcamdManager:
                             "webcamd reconnect failed: %s", error
                         )
                         return
-                    # _spawn started a fresh watchdog; retire this one
                     return
 
             self._logger.warning(
@@ -455,8 +395,6 @@ class WebcamdManager:
             backoff = min(backoff * 2, _BACKOFF_MAX)
 
             with self._lock:
-                # re-check: a manual restart/stop during the backoff sleep
-                # would have advanced the generation; don't spawn a duplicate
                 if generation != self._generation or self._stop_requested:
                     return
                 self._restart_count += 1
@@ -465,8 +403,6 @@ class WebcamdManager:
                     self._last_error = error
                     self._logger.error("webcamd restart failed: %s", error)
                     return
-                # _spawn started a fresh watchdog for the new generation; hand
-                # supervision over to it and retire this one
                 return
 
     def _notify(self, state, detail):

@@ -1,91 +1,48 @@
 # Contributing to OctoPrint-BambuCam
 
-Thank you for considering a contribution!
-The following guidelines help keep the project
-consistent and the review process smooth.
-
-## Code of Conduct
-
-All interactions in this project are governed by our
-[Code of Conduct](CODE_OF_CONDUCT.md). Please read it before participating.
+Thanks for contributing! These guidelines keep the project consistent and
+reviews smooth. All interactions are governed by our
+[Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## What we welcome
 
-- **Bug reports** — reproducible issues with a systeminfo bundle and log output.
+- **Bug reports** — reproducible issues with a systeminfo bundle and logs.
 - **Feature suggestions** — open an issue first to discuss before implementing.
-- **Focused code changes** — small, targeted PRs are easier to review
-  than large refactors.
 - **Documentation improvements** — fixes, clarifications, and translations.
 
 ## Development setup
 
 ```bash
-# 1. Clone and create a virtual environment
 git clone https://github.com/Ajimaru/OctoPrint-BambuCam.git
 cd OctoPrint-BambuCam
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-
-# 2. Install in editable mode with dev dependencies
-pip install -e ".[develop]"
-pip install pytest pytest-cov pre-commit
-npm install --no-save       # for ESLint / Prettier hooks
-
-# 3. Install git hooks
-pre-commit install
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e ".[develop]" pytest pytest-cov pre-commit
+npm install --no-save        # for the ESLint / Prettier hooks
+pre-commit install           # installs the git hooks
 ```
 
-## Running tests
-
-```bash
-pytest tests/ -v
-```
+Run the tests with `pytest tests/ -v`.
 
 ## Code style
 
-This project uses [Ruff](https://docs.astral.sh/ruff/) for Python linting and formatting,
-[ESLint](https://eslint.org/) and [Prettier](https://prettier.io/) for
-JavaScript, and
-[Bandit](https://bandit.readthedocs.io/) for security scanning. All checks run
-automatically via pre-commit.
-
-Run all checks manually:
-
-```bash
-pre-commit run --all-files
-```
+The git hooks (Black, isort, Ruff, flake8 and Bandit for Python; ESLint and
+Prettier for JS/CSS) enforce the style on every commit — just commit and let
+them apply any fixes. Don't hand-format to fight them.
 
 ## Pull request standards
 
-- One logical change per PR — avoid mixing features with refactors.
-- All new behaviour must be covered by tests.
-- Update the relevant documentation (README, docstrings).
-- Add a `CHANGELOG.md` entry under the _Unreleased_ section.
-- Write clear commit messages (imperative, ≤ 72 chars subject line).
+- One logical change per PR — don't mix features with refactors.
+- Cover new behaviour with tests and update the relevant docs.
+- Keep the coverage gate green (`--cov-fail-under=90`).
 
 ## Branching and merging
 
-- `main` is the protected release branch; `dev` is the integration branch.
-  Open pull requests **from `dev` into `main`** (or from a short-lived
-  feature branch).
-- PRs are merged with **Rebase and merge** — this is the only method enabled
-  on the repository. Squash and merge-commit are disabled on purpose: squash
-  rewrites the branch into a single new commit, which makes `dev` diverge from
-  `main` and every subsequent PR show a phantom conflict.
-- Because rebase merging replays your commits onto `main` unchanged, `dev`
-  stays a direct ancestor of `main`. After a PR is merged, sync `dev` with a
-  plain fast-forward — no reset or force-push needed:
-
-  ```bash
-  git checkout dev
-  git pull --ff-only origin main
-  git push origin dev
-  ```
-
-- `main` requires a linear history, so keep `dev` rebased on `main`
-  (`git rebase origin/main`) rather than merging `main` into `dev`.
+`dev` is the integration branch; `main` is the protected, linear-history
+release branch. **Open your PR from a short-lived feature branch into `dev`**.
+Keep your branch rebased on `dev` (`git rebase origin/dev`)
+rather than merging `dev` into it, so history stays linear.
 
 ## Licensing
 
-By contributing, you agree that your contribution will be licensed under the
+By contributing, you agree your contribution is licensed under the
 [AGPL-3.0-or-later](LICENSE) license that covers this project.

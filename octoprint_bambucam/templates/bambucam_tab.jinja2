@@ -1,0 +1,207 @@
+<div class="bambucam_tab_content">
+    <h3>{{ _("BambuCam Timelapse") }}</h3>
+    <p class="text-muted">
+        {{ _("List, copy, move and delete the timelapse videos stored on the Bambu printer's SD card. Copied videos appear in OctoPrint's Timelapse tab.") }}
+    </p>
+    <!-- ── Toolbar ──────────────────────────────────────────────────────── -->
+    <div class="bambucam_timelapse_toolbar">
+        <button class="btn"
+                data-bind="click: refreshTimelapses, enable: !timelapseLoading()">
+            <i class="fas fa-sync" data-bind="css: { 'fa-spin': timelapseLoading }"></i>
+            {{ _("Refresh list") }}
+        </button>
+        <!-- admin-only batch actions -->
+        <span data-bind="visible: loginState.isAdmin">
+            <button class="btn"
+                    data-bind="click: copySelected, enable: selectedCount() > 0 && !opRunning()">
+                <i class="fas fa-copy"></i> {{ _("Copy") }}
+            </button>
+            <button class="btn"
+                    data-bind="click: moveSelected, enable: selectedCount() > 0 && !opRunning() && !printActive()">
+                <i class="fas fa-scissors"></i> {{ _("Move") }}
+            </button>
+            <button class="btn btn-danger"
+                    data-bind="click: deleteSelected, enable: selectedCount() > 0 && !opRunning() && !printActive()">
+                <i class="fas fa-trash"></i> {{ _("Delete") }}
+            </button>
+            <span class="text-muted" data-bind="text: selectedLabel"></span>
+        </span>
+        <!-- sort menu (mirrors OctoPrint's native Timelapse tab) -->
+        <div class="btn-group bambucam_sort_menu">
+            <button class="btn dropdown-toggle"
+                    data-toggle="dropdown"
+                    title="{{ _('Sort') }}">
+                <i class="fas fa-wrench"></i> <span class="caret"></span>
+            </button>
+            <ul class="dropdown-menu pull-right">
+                <li data-bind="css: { active: timelapseSort() === 'name_desc' }">
+                    <a href="#"
+                       data-bind="click: function() { setTimelapseSort('name_desc'); }">
+                        {{ _("Sort by name (descending)") }}
+                    </a>
+                </li>
+                <li data-bind="css: { active: timelapseSort() === 'date_desc' }">
+                    <a href="#"
+                       data-bind="click: function() { setTimelapseSort('date_desc'); }">
+                        {{ _("Sort by date (descending)") }}
+                    </a>
+                </li>
+                <li data-bind="css: { active: timelapseSort() === 'size_desc' }">
+                    <a href="#"
+                       data-bind="click: function() { setTimelapseSort('size_desc'); }">
+                        {{ _("Sort by file size (descending)") }}
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <p class="text-warning"
+       data-bind="visible: printActive() && loginState.isAdmin()">
+        <small>{{ _("Move and delete are disabled while a print is running.") }}</small>
+    </p>
+    <!-- ── List-level states ────────────────────────────────────────────── -->
+    <div class="alert"
+         data-bind="visible: timelapseReason() === 'auth_failed'">
+        {{ _("Login failed — check the access code in Settings > BambuCam.") }}
+    </div>
+    <div class="alert"
+         data-bind="visible: timelapseReason() === 'unreachable'">
+        {{ _("Printer not reachable. Is it powered on and on the network?") }}
+    </div>
+    <div class="alert" data-bind="visible: timelapseReason() === 'timeout'">
+        {{ _("The printer did not respond in time. Try again.") }}
+    </div>
+    <div class="alert"
+         data-bind="visible: timelapseReason() === 'error' || timelapseReason() === 'tls_error'">
+        {{ _("Could not list the timelapses. Check the connection and try again.") }}
+    </div>
+    <div class="alert alert-info"
+         data-bind="visible: !timelapseLoading() && !timelapseReason() && timelapseFiles().length === 0">
+        {{ _("No timelapses found. Insert an SD card and enable timelapse capture in the slicer/printer.") }}
+    </div>
+    <!-- ── File table ───────────────────────────────────────────────────── -->
+    <div class="bambucam_timelapse_table"
+         data-bind="visible: timelapseFiles().length > 0">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th class="bambucam_col_check">
+                        <input type="checkbox"
+                               data-bind="checked: selectAll"
+                               title="{{ _('Select all') }}" />
+                    </th>
+                    <th class="bambucam_col_thumb">{{ _("Preview") }}</th>
+                    <th class="bambucam_col_details">{{ _("Details") }}</th>
+                    <th>{{ _("Status") }}</th>
+                </tr>
+            </thead>
+            <tbody data-bind="foreach: sortedTimelapseFiles">
+                <tr>
+                    <td>
+                        <input type="checkbox" data-bind="checked: selected" />
+                    </td>
+                    <td class="bambucam_col_thumb">
+                        <img class="bambucam_thumb"
+                             data-bind="attr: { src: thumbUrl }, visible: thumbOk, click: $root.showThumbnail, event: { error: $root.onThumbError }"
+                             alt="{{ _('Preview') }}" />
+                        <span class="bambucam_thumb_none" data-bind="visible: !thumbOk()"><i class="fas fa-film"></i></span>
+                    </td>
+                    <td class="bambucam_col_details">
+                        <div class="bambucam_detail_name" data-bind="text: name"></div>
+                        <!-- Real date (copied file's mtime or recorded PrintDone time) -->
+                        <div class="bambucam_detail_meta bambucam_date_corrected"
+                             data-bind="visible: dateCorrected, text: date, attr: { title: '{{ _("Real time. Printer SD date is wrong in LAN-only mode:") }} ' + dateRaw }">
+                        </div>
+                        <!-- No trustworthy date: do not show the bogus camera-clock date -->
+                        <div class="bambucam_detail_meta bambucam_date_unknown"
+                             data-bind="visible: dateUnreliable, attr: { title: '{{ _("Printer date is unreliable in LAN-only mode:") }} ' + dateRaw }">
+                            {{ _("Date unknown") }}
+                        </div>
+                        <div class="bambucam_detail_meta" data-bind="text: sizeText"></div>
+                    </td>
+                    <td>
+                        <span class="label label-success"
+                              data-bind="visible: copied() && progress() < 0 && !converting()">
+                            <i class="fas fa-check"></i> {{ _("Copied") }}
+                        </span>
+                        <div class="bambucam_renamed"
+                             data-bind="visible: copied() && progress() < 0 && !converting() && renamedTo(), text: '→ ' + renamedTo()">
+                        </div>
+                        <div class="progress progress-info bambucam_row_progress"
+                             data-bind="visible: converting">
+                            <div class="bar" data-bind="style: { width: convertProgress() + '%' }"></div>
+                            <span class="bambucam_progress_label">
+                                <i class="fas fa-film"></i>
+                                {{ _("Converting") }}
+                                <span data-bind="text: convertProgress() + '%'"></span>
+                            </span>
+                        </div>
+                        <div class="progress bambucam_row_progress"
+                             data-bind="visible: progress() >= 0">
+                            <div class="bar" data-bind="style: { width: progress() + '%' }"></div>
+                            <span class="bambucam_progress_label">
+                                <span data-bind="text: progress() + '%'"></span>
+                                <span class="bambucam_eta" data-bind="visible: etaText, text: etaText"></span>
+                            </span>
+                        </div>
+                        <span class="text-error" data-bind="visible: rowError, text: rowError"></span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <!-- ── Local .avi awaiting conversion ───────────────────────────────── -->
+    <div class="bambucam_local_avi"
+         data-bind="visible: loginState.isAdmin() && localAvi().length > 0">
+        <h4>{{ _("Local .avi files (not yet converted)") }}</h4>
+        <p class="text-muted">
+            {{ _("These videos were downloaded but not converted to .mp4 (conversion was off, skipped while printing, or ffmpeg failed). Convert them to play everywhere.") }}
+        </p>
+        <div class="bambucam_timelapse_toolbar">
+            <button class="btn"
+                    data-bind="click: convertAllLocal, enable: localAvi().length > 0 && !convertRunning() && !printActive()">
+                <i class="fas fa-film"></i> {{ _("Convert all") }}
+            </button>
+            <span class="text-warning" data-bind="visible: printActive()"><small>{{ _("Disabled while a print is running.") }}</small></span>
+        </div>
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>{{ _("Name") }}</th>
+                    <th>{{ _("Size") }}</th>
+                    <th>{{ _("Status") }}</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody data-bind="foreach: localAvi">
+                <tr>
+                    <td data-bind="text: name"></td>
+                    <td data-bind="text: sizeText"></td>
+                    <td>
+                        <div class="progress progress-info bambucam_row_progress"
+                             data-bind="visible: converting">
+                            <div class="bar" data-bind="style: { width: convertProgress() + '%' }"></div>
+                            <span class="bambucam_progress_label">
+                                <i class="fas fa-film"></i>
+                                {{ _("Converting") }}
+                                <span data-bind="text: convertProgress() + '%'"></span>
+                            </span>
+                        </div>
+                        <span class="text-error" data-bind="visible: rowError, text: rowError"></span>
+                    </td>
+                    <td>
+                        <button class="btn btn-mini"
+                                data-bind="click: $root.convertOneLocal, enable: !$root.convertRunning() && !$root.printActive()">
+                            <i class="fas fa-film"></i> {{ _("Convert") }}
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <!-- ── Thumbnail lightbox overlay ───────────────────────────────────── -->
+    <div class="bambucam_lightbox"
+         data-bind="visible: lightboxUrl, click: hideThumbnail">
+        <img data-bind="attr: { src: lightboxUrl }" alt="{{ _('Preview') }}" />
+    </div>
+</div>

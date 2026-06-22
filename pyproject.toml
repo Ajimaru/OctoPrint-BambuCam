@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "BambuCam"
-version = "0.2.0"
+version = "0.2.1dev24+0b7bf1a"
 description = "Bambu Lab camera stream integration for OctoPrint"
 authors = [
     {name = "Ajimaru", email = "ajimaru_gdr@pm.me"}
@@ -20,6 +20,7 @@ requires-python = ">=3.9, <4"
 dependencies = [
     "OctoPrint>=1.10.0",
     "Pillow",
+    "paho-mqtt>=2.0",
 ]
 
 [tool.setuptools]

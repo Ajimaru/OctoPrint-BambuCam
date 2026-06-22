@@ -16,5 +16,12 @@
         <img id="bambucam_stream"
              data-bind="event: { load: onStreamLoaded, error: onStreamErrored }"
              alt="BambuCam" />
+        <button type="button"
+                class="btn btn-small bambucam_led_toggle"
+                data-bind="visible: ledVisible, click: toggleLed, css: { active: ledOn }"
+                title="{{ _('Toggle printer light') }}">
+            <i class="fa fa-lightbulb-o"></i>
+            <span data-bind="text: ledOn() ? '{{ _("Light on") }}' : '{{ _("Light off") }}'"></span>
+        </button>
     </div>
 </div>

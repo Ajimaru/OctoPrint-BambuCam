@@ -345,9 +345,9 @@ def web_server_thread():
     print(f"{datetime.datetime.now()}: web server thread died", flush=True)
 
 class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
-    # PATCH (BambuCam): allow immediate rebind of the same port after a stop,
-    # so a restart on an unchanged port does not fail with EADDRINUSE while the
-    # previous socket is still in TIME_WAIT. See vendor/UPSTREAM.md.
+    # OctoPrint-BambuCam patch: allow immediate rebind of the same port after a
+    # stop, so a restart on an unchanged port does not fail with EADDRINUSE
+    # while the previous socket is still in TIME_WAIT. See vendor/UPSTREAM.md.
     allow_reuse_address = True
     running = True
     sessions = 0
