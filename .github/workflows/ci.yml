@@ -60,7 +60,7 @@ jobs:
         # (a shallow checkout triggers its "Report files will not be matched"
         # JGit warning); other variants stay shallow for speed.
         name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # 0 is falsy in Actions expressions, so `run-coverage && 0 || 1`
           # would always yield 1. Compare explicitly and emit string depths.
@@ -212,7 +212,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v6

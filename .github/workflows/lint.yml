@@ -29,7 +29,7 @@ jobs:
     steps:
       - # Checkout repository code
         name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - # Load central tool-version pins, overriding the env: fallbacks above.
         name: Load tool versions
