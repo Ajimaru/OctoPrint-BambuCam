@@ -7,7 +7,8 @@
 ## Vendored upstream — webcamd-bambu
 
 The plugin bundles
-[`webcam.py`](octoprint_bambucam/vendor/webcamd_bambu/) from the
+[`webcam.py`](octoprint_bambucam/vendor/webcamd_bambu/) (and its watermark font)
+from the
 [webcamd-bambu](https://github.com/disconn3ct/webcamd-bambu) project
 (`bambu` branch),
 licensed under **GPL-3.0**:
