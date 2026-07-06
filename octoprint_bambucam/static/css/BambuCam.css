@@ -7,7 +7,200 @@
   height: auto;
 }
 
+/* The fixed-ratio wrapper is the positioning context for the LED toggle, which
+   floats in the top-right corner over the live stream. */
+#bambucam_webcam_container .bambucam_fixed_ratio {
+  position: relative;
+}
+
+/* Top-center so it never overlaps OctoPrint's webcam-provider dropdown, which
+   sits in the top-right corner of the stream. */
+#bambucam_webcam_container .bambucam_led_toggle {
+  position: absolute;
+  top: 0.5em;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  opacity: 0.85;
+}
+
+#bambucam_webcam_container .bambucam_led_toggle:hover {
+  opacity: 1;
+}
+
+/* "On" state: a warm, lit-up look so the toggle reads at a glance. */
+#bambucam_webcam_container .bambucam_led_toggle.active {
+  background-color: #f5d76e;
+  color: #503800;
+  text-shadow: none;
+}
+
 #bambucam_webcam_container .bambucam_nostream {
   padding: 2em;
   text-align: center;
+}
+
+/* Timelapse tab */
+#tab_plugin_bambucam .bambucam_timelapse_toolbar {
+  margin-bottom: 1em;
+}
+
+#tab_plugin_bambucam .bambucam_timelapse_toolbar .btn {
+  margin-right: 0.25em;
+}
+
+/* Sort menu sits at the far right of the toolbar, like OctoPrint's own tab. */
+#tab_plugin_bambucam .bambucam_sort_menu {
+  float: right;
+}
+
+#tab_plugin_bambucam .bambucam_sort_menu .btn {
+  margin-right: 0;
+}
+
+/* Cap the list to roughly one Full-HD viewport; scroll inside with a sticky
+   header so the toolbar never gets pushed off screen. */
+#tab_plugin_bambucam .bambucam_timelapse_table {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* Sticky header background.
+   Themes paint the page background at wildly different ancestors (some color
+   `.tab-content`, others e.g. Themeify "discorded" only color `<body>`), and
+   the elements above our <th> are transparent — so neither a hard-coded color
+   nor CSS `inherit` reliably matches the active theme. The viewmodel therefore
+   reads the nearest opaque ancestor background at runtime and assigns it to
+   `--bambucam-header-bg` (see BambuCam.js); we consume it here, falling back to
+   the surrounding background for the stock light UI. */
+#tab_plugin_bambucam .bambucam_timelapse_table thead th {
+  position: sticky;
+  top: 0;
+  background-color: var(--bambucam-header-bg, inherit);
+  z-index: 1;
+}
+
+#tab_plugin_bambucam .bambucam_col_check {
+  width: 2em;
+}
+
+#tab_plugin_bambucam .bambucam_row_progress {
+  margin: 0;
+  min-width: 120px;
+  position: relative;
+}
+
+/* percent + ETA centered over the progress bar */
+#tab_plugin_bambucam .bambucam_progress_label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  font-size: 11px;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.7);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+#tab_plugin_bambucam .bambucam_eta {
+  opacity: 0.85;
+}
+
+#tab_plugin_bambucam .bambucam_col_thumb {
+  width: 96px;
+}
+
+/* Details column: file name in bold over muted date/size lines, matching
+   OctoPrint's own Timelapse list. Kept moderate so the Status column (which
+   shows the "Copied → name.mp4" hint) gets the rest of the width. */
+#tab_plugin_bambucam .bambucam_col_details {
+  width: 38%;
+}
+
+#tab_plugin_bambucam .bambucam_detail_name {
+  font-weight: bold;
+  word-break: break-all;
+}
+
+#tab_plugin_bambucam .bambucam_detail_meta {
+  font-size: 0.85em;
+  opacity: 0.6;
+}
+
+/* Real (trustworthy) date — copied file mtime or recorded PrintDone time. */
+#tab_plugin_bambucam .bambucam_date_corrected {
+  opacity: 0.85;
+}
+
+/* No trustworthy date: the SD camera clock is wrong and we have no record. */
+#tab_plugin_bambucam .bambucam_date_unknown {
+  font-style: italic;
+  opacity: 0.45;
+}
+
+#tab_plugin_bambucam .bambucam_thumb {
+  width: 80px;
+  height: 50px;
+  object-fit: cover;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+#tab_plugin_bambucam .bambucam_thumb_none {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 50px;
+  background: rgba(127, 127, 127, 0.15);
+  border-radius: 3px;
+  color: #888;
+}
+
+/* Full-size preview overlay */
+#tab_plugin_bambucam .bambucam_lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+  padding: 2vh;
+}
+
+#tab_plugin_bambucam .bambucam_lightbox img {
+  max-width: 95vw;
+  max-height: 95vh;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
+}
+
+#tab_plugin_bambucam .bambucam_local_avi {
+  margin-top: 2em;
+}
+
+#tab_plugin_bambucam .bambucam_converting {
+  color: #888;
+}
+
+#tab_plugin_bambucam .bambucam_renamed {
+  margin-top: 0.35em;
+  opacity: 0.8;
+  font-weight: normal;
+  font-size: 0.85em;
+  word-break: break-all;
+}
+
+/* ffmpeg availability indicator in the Timelapse settings tab. */
+.bambucam_ffmpeg_status {
+  margin-top: 0.4em;
+}
+
+.bambucam_ffmpeg_status code {
+  margin-left: 0.3em;
 }
