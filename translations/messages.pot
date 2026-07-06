@@ -131,6 +131,7 @@ msgid "Conversion failed"
 msgstr ""
 
 #: octoprint_bambucam/static/js/BambuCam.js:697
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:93
 msgid "Failed"
 msgstr ""
 
@@ -177,6 +178,152 @@ msgstr ""
 
 #: octoprint_bambucam/static/js/BambuCam.js:1313
 msgid "Printer is offline — reconnecting automatically."
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:1
+msgid "Raw Files"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:3
+msgid ""
+"Raw high-res timelapse footage harvested from the printer's /ipcam buffer, "
+"grouped per print. Concat and render a group into a finished clip — it then "
+"appears in OctoPrint's native Timelapse tab."
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:9
+msgid "Reload Library"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:13
+msgid "Fetch from printer"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:16
+msgid "Fetching and rendering are disabled while a print is running."
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:20
+msgid "Disk used"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:25
+msgid "Copying…"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:28
+msgid "Harvesting"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:40
+msgid "Groups"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:41
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:87
+msgid "Ready"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:42
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:89
+msgid "Rendered"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:43
+msgid "Rendering"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:44
+msgid "Queue"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:49
+msgid ""
+"No raw footage groups yet. Finish a print (auto-download on) or click "
+"\"Fetch from printer\"."
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:55
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:69
+#: octoprint_bambucam/templates/bambucam_tab.jinja2:93
+#: octoprint_bambucam/templates/bambucam_tab.jinja2:106
+#: octoprint_bambucam/templates/bambucam_tab.jinja2:205
+msgid "Preview"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:56
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:177
+msgid "Print Job"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:57
+msgid "Duration"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:58
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:167
+msgid "Resolution"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:59
+#: octoprint_bambucam/templates/bambucam_tab.jinja2:171
+msgid "Size"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:60
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:144
+#: octoprint_bambucam/templates/bambucam_tab.jinja2:95
+#: octoprint_bambucam/templates/bambucam_tab.jinja2:172
+msgid "Status"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:79
+msgid "chunks"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:91
+msgid "Incomplete"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:110
+msgid "Concat + Render"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:114
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:125
+msgid "Discard"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:121
+msgid "Re-harvest"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:131
+msgid "Cancel"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:155
+msgid "missing"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:159
+msgid "Delete this chunk and its slot pair permanently"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:173
+msgid "Render queue"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:178
+msgid "Preset"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:179
+msgid "State"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_raw.jinja2:180
+msgid "Progress"
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:8
@@ -325,12 +472,6 @@ msgid ""
 "empty to use the port above directly."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:144
-#: octoprint_bambucam/templates/bambucam_tab.jinja2:95
-#: octoprint_bambucam/templates/bambucam_tab.jinja2:172
-msgid "Status"
-msgstr ""
-
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:148
 msgid "Running"
 msgstr ""
@@ -345,10 +486,6 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:159
 msgid "Restart stream server"
-msgstr ""
-
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:167
-msgid "Resolution"
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:173
@@ -601,12 +738,6 @@ msgstr ""
 msgid "Select all"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_tab.jinja2:93
-#: octoprint_bambucam/templates/bambucam_tab.jinja2:106
-#: octoprint_bambucam/templates/bambucam_tab.jinja2:205
-msgid "Preview"
-msgstr ""
-
 #: octoprint_bambucam/templates/bambucam_tab.jinja2:94
 msgid "Details"
 msgstr ""
@@ -652,10 +783,6 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_tab.jinja2:170
 msgid "Name"
-msgstr ""
-
-#: octoprint_bambucam/templates/bambucam_tab.jinja2:171
-msgid "Size"
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_tab.jinja2:195

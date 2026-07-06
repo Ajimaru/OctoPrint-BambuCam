@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["v*", "[0-9]*"]
 
 permissions:
   contents: write
@@ -41,7 +41,8 @@ jobs:
         id: prerelease
         run: |
           TAG="${{ github.ref_name }}"
-          if echo "$TAG" | grep -qE '(a|b|rc)[0-9]+$'; then
+          TAG_LOWER="$(printf '%s' "$TAG" | tr '[:upper:]' '[:lower:]')"
+          if echo "$TAG_LOWER" | grep -qE '((^|[-.])(a|b|rc)([.-]?[0-9a-z]+)?($|\+))|((a|b|rc)[0-9]+$)'; then
             echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
           else
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
