@@ -1,0 +1,27 @@
+{
+  "root": true,
+  "env": {
+    "browser": true,
+    "jquery": true,
+    "es2021": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2021,
+    "sourceType": "script"
+  },
+  "extends": "eslint:recommended",
+  "globals": {
+    "ko": "readonly",
+    "OctoPrint": "readonly",
+    "OCTOPRINT_VIEWMODELS": "writable",
+    "PNotify": "readonly",
+    "gettext": "readonly",
+    "_": "readonly"
+  },
+  "rules": {
+    "no-unused-vars": [
+      "warn",
+      { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }
+    ]
+  }
+}
