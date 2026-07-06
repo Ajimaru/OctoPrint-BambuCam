@@ -14,9 +14,13 @@
             <a href="#bambucam_tab_connection" data-toggle="tab">{{ _("Connection") }}</a>
         </li>
         <li>
-            <a href="#bambucam_tab_advanced" data-toggle="tab">
-                {{ _("Image & Advanced") }}
-            </a>
+            <a href="#bambucam_tab_image" data-toggle="tab">{{ _("Image") }}</a>
+        </li>
+        <li>
+            <a href="#bambucam_tab_timelapse" data-toggle="tab">{{ _("Timelapse") }}</a>
+        </li>
+        <li>
+            <a href="#bambucam_tab_advanced" data-toggle="tab">{{ _("Advanced") }}</a>
         </li>
     </ul>
     <div class="tab-content">
@@ -24,11 +28,25 @@
         <div class="tab-pane active" id="bambucam_tab_connection">
             <h4>{{ _("Printer connection") }}</h4>
             <div class="control-group">
+                <label class="control-label">{{ _("Configuration") }}</label>
+                <div class="controls">
+                    <select data-bind="value: settings.plugins.bambucam.config_source">
+                        <option value="manual">{{ _("Manual configuration") }}</option>
+                        <option value="auto" data-bind="enable: connectorAvailable">
+                            {{ _("Auto (from Bambu Connector)") }}
+                        </option>
+                    </select>
+                    <span class="help-block" data-bind="visible: connectorAvailable">{{ _("A Bambu Connector connection was found — \"Auto\" reuses its printer IP and access code.") }}</span>
+                    <span class="help-block text-muted"
+                          data-bind="visible: !connectorAvailable()">{{ _("Set up a Bambu printer connection with OctoPrint-BambuConnector to enable automatic configuration.") }}</span>
+                </div>
+            </div>
+            <div class="control-group">
                 <label class="control-label">{{ _("Printer IP / hostname") }}</label>
                 <div class="controls">
                     <input type="text"
                            class="input-block-level"
-                           data-bind="value: settings.plugins.bambucam.hostname"
+                           data-bind="value: connectionFieldsAuto() ? connectorHostname : settings.plugins.bambucam.hostname, disable: connectionFieldsAuto"
                            placeholder="192.168.1.100" />
                     <span class="help-block">{{ _("IP address of your Bambu Lab printer (P1/A1 series, LAN mode). The X1 series is not supported.") }}</span>
                 </div>
@@ -38,7 +56,7 @@
                 <div class="controls">
                     <input type="password"
                            class="input-block-level"
-                           data-bind="value: settings.plugins.bambucam.access_code"
+                           data-bind="value: connectionFieldsAuto() ? connectorAccessCodeMask : settings.plugins.bambucam.access_code, disable: connectionFieldsAuto"
                            autocomplete="new-password" />
                     <span class="help-block">{{ _("LAN access code, shown on the printer display under network settings.") }}</span>
                 </div>
@@ -144,7 +162,8 @@
             </div>
         </div>
         <!-- ── Tab 2: Image & Advanced ───────────────────────────────────── -->
-        <div class="tab-pane" id="bambucam_tab_advanced">
+        <!-- ── Tab: Image ────────────────────────────────────────────────── -->
+        <div class="tab-pane" id="bambucam_tab_image">
             <h4>{{ _("Resolution") }}</h4>
             <div class="control-group">
                 <div class="controls">
@@ -213,6 +232,81 @@
                     </label>
                 </div>
             </div>
+        </div>
+        <!-- ── Tab: Timelapse ────────────────────────────────────────────── -->
+        <div class="tab-pane" id="bambucam_tab_timelapse">
+            <h4>{{ _("Timelapse downloads") }}</h4>
+            <div class="control-group">
+                <label class="control-label">{{ _("Filename suffix") }}</label>
+                <div class="controls">
+                    <input type="text"
+                           class="input-medium"
+                           data-bind="value: settings.plugins.bambucam.download_suffix" />
+                    <span class="help-block">{{ _("Optional. Appended to each downloaded timelapse filename before the extension (e.g. _bambu) so they're easy to tell apart from OctoPrint's own renders.") }}</span>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="controls">
+                    <label class="checkbox">
+                        <input type="checkbox"
+                               data-bind="checked: settings.plugins.bambucam.transcode_to_mp4" />
+                        {{ _("Convert downloaded .avi to .mp4") }}
+                    </label>
+                    <span class="help-block">{{ _("Re-encodes each copied .avi to .mp4 (removing the .avi) using OctoPrint's ffmpeg. Skipped while printing.") }}</span>
+                    <div class="bambucam_ffmpeg_status">
+                        <span class="text-success" data-bind="visible: ffmpegState() === 'ok'">
+                            <i class="fas fa-check-circle"></i>
+                            {{ _("ffmpeg found") }}
+                            <code data-bind="visible: ffmpegPath, text: ffmpegPath"></code>
+                        </span>
+                        <span class="text-error" data-bind="visible: ffmpegState() === 'missing'">
+                            <i class="fas fa-times-circle"></i>
+                            {{ _("ffmpeg not found — set it under Settings → Webcam &amp; Timelapse. Conversion will be skipped until then.") }}
+                        </span>
+                        <span class="text-muted" data-bind="visible: !ffmpegState()">
+                            <i class="fas fa-spinner fa-spin"></i> {{ _("Checking ffmpeg…") }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="controls">
+                    <label class="checkbox">
+                        <input type="checkbox"
+                               data-bind="checked: settings.plugins.bambucam.auto_sync" />
+                        {{ _("Automatically pull new timelapses after a print") }}
+                    </label>
+                    <span class="help-block">{{ _("After a print finishes, copy/move the printer's new timelapse automatically — but only once the printer is idle and OctoPrint has finished rendering its own timelapse.") }}</span>
+                </div>
+            </div>
+            <div class="control-group"
+                 data-bind="visible: settings.plugins.bambucam.auto_sync">
+                <label class="control-label">{{ _("Auto-pull action") }}</label>
+                <div class="controls">
+                    <select data-bind="value: settings.plugins.bambucam.auto_sync_action">
+                        <option value="copy">{{ _("Copy (keep on SD card)") }}</option>
+                        <option value="move">{{ _("Move (delete from SD card)") }}</option>
+                    </select>
+                </div>
+            </div>
+            <div class="control-group"
+                 data-bind="visible: settings.plugins.bambucam.auto_sync">
+                <label class="control-label">{{ _("Delay after print") }}</label>
+                <div class="controls">
+                    <div class="input-append">
+                        <input type="number"
+                               min="0"
+                               max="3600"
+                               class="input-small"
+                               data-bind="value: settings.plugins.bambucam.auto_sync_delay" />
+                        <span class="add-on">{{ _("seconds") }}</span>
+                    </div>
+                    <span class="help-block">{{ _("How long to wait after a print before checking the SD card (the printer writes its timelapse with a delay).") }}</span>
+                </div>
+            </div>
+        </div>
+        <!-- ── Tab: Advanced ─────────────────────────────────────────────── -->
+        <div class="tab-pane" id="bambucam_tab_advanced">
             <h4>{{ _("Daemon") }}</h4>
             <div class="control-group">
                 <div class="controls">
