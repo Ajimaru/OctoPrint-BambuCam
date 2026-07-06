@@ -47,6 +47,7 @@ export default [
         OCTOPRINT_VIEWMODELS: "readonly",
         PNotify: "readonly",
         gettext: "readonly",
+        showConfirmationDialog: "readonly",
         _: "readonly",
       },
     },

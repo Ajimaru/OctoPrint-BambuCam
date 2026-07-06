@@ -24,8 +24,8 @@
 
 ## Local patches (marked `OctoPrint-BambuCam patch` in the source)
 
-1. `/?info` no longer includes the printer access code (`config.password` is
-   redacted).
+1. `/?info` no longer includes the printer access code (the `password` field is
+   replaced with `<redacted>` in the JSON response).
 2. `/?shutdown` is disabled (returns 403). The endpoint had no authentication
    and the
    process lifecycle is managed by the OctoPrint plugin instead.
