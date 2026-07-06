@@ -1,0 +1,200 @@
+<h3>{{ _("Raw Files") }}</h3>
+<p class="text-muted">
+    {{ _("Raw high-res timelapse footage harvested from the printer's /ipcam buffer, grouped per print. Concat and render a group into a finished clip — it then appears in OctoPrint's native Timelapse tab.") }}
+</p>
+<!-- ── Toolbar ──────────────────────────────────────────────────────── -->
+<div class="bambucam_timelapse_toolbar">
+    <button class="btn"
+            data-bind="click: scanRaw, enable: !rawLoading() && !pipelineBusy()">
+        <i class="fas fa-sync" data-bind="css: { 'fa-spin': rawLoading }"></i>
+        {{ _("Reload Library") }}
+    </button>
+    <button class="btn"
+            data-bind="visible: loginState.isAdmin, click: harvestIpcam, enable: !rawLoading() && !printActive() && !pipelineBusy()">
+        <i class="fas fa-download"></i> {{ _("Fetch from printer") }}
+    </button>
+    <span class="text-warning" data-bind="visible: printActive()">
+        <small>{{ _("Fetching and rendering are disabled while a print is running.") }}</small>
+    </span>
+    <span class="bambucam_raw_diskusage text-muted"
+          data-bind="visible: rawGroups().length > 0">
+        <i class="fas fa-hdd"></i>
+        {{ _("Disk used") }}: <span data-bind="text: rawTotalSizeText"></span>
+    </span>
+    <!-- Harvest progress: shown while the post-print pipeline pulls chunks -->
+    <span class="bambucam_raw_harvest" data-bind="visible: pipelineBusy">
+        <span class="text-muted" data-bind="visible: !pipelineHarvesting()">
+            <i class="fas fa-spinner fa-spin"></i> {{ _("Copying…") }}
+        </span>
+        <span class="bambucam_harvest_progress"
+              data-bind="visible: pipelineHarvesting">
+            <i class="fas fa-download"></i> {{ _("Harvesting") }}
+            <span class="progress bambucam_harvest_bar">
+                <span class="bar"
+                      data-bind="style: { width: pipelineProgressPercent() + '%' }"></span>
+            </span>
+            <span data-bind="text: pipelineProgressText"></span>
+            <span class="text-muted bambucam_harvest_speed"
+                  data-bind="visible: pipelineSpeedText, text: pipelineSpeedText"></span>
+        </span>
+    </span>
+</div>
+<!-- ── Summary counters ─────────────────────────────────────────────── -->
+<div class="bambucam_raw_summary">
+    <span class="label">{{ _("Groups") }}: <span data-bind="text: rawGroups().length"></span></span>
+    <span class="label label-success">{{ _("Ready") }}: <span data-bind="text: readyCount"></span></span>
+    <span class="label label-info">{{ _("Rendered") }}: <span data-bind="text: renderedCount"></span></span>
+    <span class="label label-info">{{ _("Rendering") }}: <span data-bind="text: renderingCount"></span></span>
+    <span class="label">{{ _("Queue") }}: <span data-bind="text: queuedCount"></span></span>
+</div>
+<!-- ── Empty state ──────────────────────────────────────────────────── -->
+<div class="alert alert-info"
+     data-bind="visible: !rawLoading() && rawGroups().length === 0">
+    {{ _("No raw footage groups yet. Finish a print (auto-download on) or click \"Fetch from printer\".") }}
+</div>
+<!-- ── Library table ────────────────────────────────────────────────── -->
+<table class="table table-hover bambucam_raw_table"
+       data-bind="visible: rawGroups().length > 0">
+    <thead>
+        <tr>
+            <th class="bambucam_col_thumb">{{ _("Preview") }}</th>
+            <th>{{ _("Print Job") }}</th>
+            <th>{{ _("Duration") }}</th>
+            <th>{{ _("Resolution") }}</th>
+            <th>{{ _("Size") }}</th>
+            <th>{{ _("Status") }}</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody data-bind="foreach: rawGroups">
+        <tr>
+            <td class="bambucam_col_thumb">
+                <img class="bambucam_thumb"
+                     data-bind="attr: { src: thumbUrl }, visible: hasThumb, click: $root.showThumbnail"
+                     alt="{{ _('Preview') }}" />
+                <span class="bambucam_thumb_none" data-bind="visible: !hasThumb()"><i class="fas fa-film"></i></span>
+            </td>
+            <td>
+                <a href="#" data-bind="click: function() { expanded(!expanded()); }">
+                    <i class="fas"
+                       data-bind="css: { 'fa-caret-down': expanded, 'fa-caret-right': !expanded() }"></i>
+                    <span data-bind="text: printId"></span>
+                </a>
+                <div class="text-muted">
+                    <small><span data-bind="text: chunkCount"></span> {{ _("chunks") }}</small>
+                </div>
+            </td>
+            <td data-bind="text: durationText"></td>
+            <td data-bind="text: resolutionText"></td>
+            <td data-bind="text: sizeText"></td>
+            <td>
+                <span class="label label-success"
+                      data-bind="visible: state() === 'chunks_ready'">{{ _("Ready") }}</span>
+                <span class="label label-info"
+                      data-bind="visible: state() === 'rendered', attr: { title: renderedTitle }">{{ _("Rendered") }}</span>
+                <span class="label label-warning"
+                      data-bind="visible: state() === 'incomplete'">{{ _("Incomplete") }}</span>
+                <span class="label label-important"
+                      data-bind="visible: state() === 'failed'">{{ _("Failed") }}</span>
+                <div class="progress bambucam_row_progress" data-bind="visible: rendering">
+                    <div class="bar" data-bind="style: { width: renderPercent() + '%' }"></div>
+                    <span class="bambucam_progress_label">
+                        <span data-bind="text: renderPhase"></span>
+                        <span data-bind="text: renderPercent() + '%'"></span>
+                    </span>
+                </div>
+            </td>
+            <td data-bind="visible: $root.loginState.isAdmin()">
+                <!-- Ready/rendered: pick preset + (re-)render -->
+                <div data-bind="visible: (state() === 'chunks_ready' || state() === 'rendered') && !rendering()">
+                    <select class="input-small"
+                            data-bind="value: preset, options: $root.presetList, optionsText: 'label', optionsValue: 'value'">
+                    </select>
+                    <button class="btn btn-mini btn-primary"
+                            data-bind="click: $root.startRender, enable: !$root.printActive()">
+                        <i class="fas fa-play"></i> {{ _("Concat + Render") }}
+                    </button>
+                    <button class="btn btn-mini btn-danger"
+                            data-bind="click: $root.deleteGroup, enable: !$root.printActive()">
+                        <i class="fas fa-trash"></i> {{ _("Discard") }}
+                    </button>
+                </div>
+                <!-- Incomplete: re-harvest or discard -->
+                <div data-bind="visible: state() === 'incomplete'">
+                    <button class="btn btn-mini"
+                            data-bind="click: $root.harvestIpcam, enable: !$root.printActive()">
+                        <i class="fas fa-redo"></i> {{ _("Re-harvest") }}
+                    </button>
+                    <button class="btn btn-mini btn-danger"
+                            data-bind="click: $root.deleteGroup, enable: !$root.printActive()">
+                        <i class="fas fa-trash"></i> {{ _("Discard") }}
+                    </button>
+                </div>
+                <!-- Rendering: cancel -->
+                <button class="btn btn-mini btn-danger"
+                        data-bind="visible: rendering, click: $root.cancelRender">
+                    <i class="fas fa-stop"></i> {{ _("Cancel") }}
+                </button>
+            </td>
+        </tr>
+        <!-- Expanded chunk list (selectable) -->
+        <tr class="bambucam_expanded_row" data-bind="visible: expanded">
+            <td></td>
+            <td colspan="6">
+                <table class="table table-condensed bambucam_chunk_table">
+                    <tbody data-bind="foreach: chunks">
+                        <tr>
+                            <td>
+                                <input type="checkbox" data-bind="checked: included, enable: present" />
+                            </td>
+                            <td>
+                                <span data-bind="text: file"></span>
+                            </td>
+                            <td class="text-muted">
+                                <small data-bind="text: 'slot ' + (slot === null ? '?' : slot)"></small>
+                            </td>
+                            <td class="text-muted">
+                                <small data-bind="text: sizeText"></small>
+                            </td>
+                            <td>
+                                <span class="label" data-bind="visible: !present"><i class="fas fa-exclamation-triangle"></i> {{ _("missing") }}</span>
+                            </td>
+                            <td class="bambucam_chunk_actions"
+                                data-bind="visible: $root.loginState.isAdmin()">
+                                <button class="btn btn-mini btn-danger"
+                                        title="{{ _('Delete this chunk and its slot pair permanently') }}"
+                                        data-bind="visible: present, click: $root.deleteChunk, enable: !$root.printActive()">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    </tbody>
+</table>
+<!-- ── Render queue ─────────────────────────────────────────────────── -->
+<div data-bind="visible: renderQueue().length > 0">
+    <h4>{{ _("Render queue") }}</h4>
+    <table class="table table-condensed bambucam_queue_table">
+        <thead>
+            <tr>
+                <th>{{ _("Print Job") }}</th>
+                <th class="bambucam_col_preset">{{ _("Preset") }}</th>
+                <th class="bambucam_col_state">{{ _("State") }}</th>
+                <th class="bambucam_col_progress">{{ _("Progress") }}</th>
+            </tr>
+        </thead>
+        <tbody data-bind="foreach: renderQueue">
+            <tr>
+                <td class="bambucam_col_printid" data-bind="text: printId"></td>
+                <td class="bambucam_col_preset" data-bind="text: preset"></td>
+                <td class="bambucam_col_state" data-bind="text: state"></td>
+                <td class="bambucam_col_progress">
+                    <span data-bind="text: percent() + '%'"></span>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
