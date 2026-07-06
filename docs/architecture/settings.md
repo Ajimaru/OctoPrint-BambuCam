@@ -26,7 +26,10 @@ changed:
 - and the plugin is **disabled** → `WebcamdManager.stop()`.
 
 `stream_url_override` is deliberately **not** in `DAEMON_SETTINGS`: it only
-affects the URL the browser uses, so no daemon restart is needed.
+affects the URL the browser uses, so no daemon restart is needed. The same goes
+for the timelapse and connector keys (`config_source`, `download_suffix`,
+`transcode_to_mp4`, `auto_sync*`) — they are read on demand by
+the timelapse/auto-sync paths and never touch the running daemon.
 
 ## Restricted paths
 

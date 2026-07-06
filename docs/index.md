@@ -7,27 +7,33 @@ Live MJPEG camera stream from Bambu Lab printers — inside OctoPrint.
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg?style=flat-square)](https://python.org)
 
 !!! note "What this site is"
-This is the **developer and API documentation** for the plugin. For
-installation and end-user instructions, see the
-[project README](https://github.com/Ajimaru/OctoPrint-BambuCam#readme).
+
+    This is the **developer and API documentation** for the plugin. For
+    installation and end-user instructions, see the
+    [project README](https://github.com/Ajimaru/OctoPrint-BambuCam#readme).
 
 ## What it does
 
-BambuCam bundles and supervises a small MJPEG HTTP server
-([webcamd-bambu](https://github.com/disconn3ct/webcamd-bambu), `bambu` branch)
-that connects to a Bambu Lab printer's camera port (TCP `6000`, TLS) using the
-LAN access code, and exposes it to OctoPrint through the standard webcam,
-settings, template, asset and simple-API plugin mixins.
+For the **live stream**, BambuCam bundles and supervises a small MJPEG HTTP
+server ([webcamd-bambu](https://github.com/disconn3ct/webcamd-bambu), `bambu`
+branch) that connects to a Bambu Lab printer's camera port (TCP `6000`, TLS).
+Its other features talk to the printer directly: **SD-card timelapse**
+management over FTPS (TCP `990`), and **light control** through
+OctoPrint-BambuConnector's connection (falling back to its own MQTT on TCP
+`8883`). Everything is exposed to OctoPrint through the standard webcam,
+settings, template, asset, event-handler and simple-API mixins.
 
 ## Highlights
 
 - **Live MJPEG stream** of P1P / P1S / A1 / A1 mini cameras in OctoPrint.
-- **Auto-managed daemon** — starts after boot, restarts on crash with
-  exponential backoff, reconfigures on settings change.
-- **Snapshot & timelapse** via the `WebcamProviderPlugin` mixin.
-- **Connection test** of IP + access code before saving.
-- **Security hardened** — access code never exposed via the daemon's
-  `/?info`; unauthenticated `/?shutdown` disabled; loopback-only snapshots.
+- **Auto-managed daemon** — starts after boot, restarts on crash with backoff,
+  reconfigures on settings change, and rides out a powered-off printer.
+- **SD-card timelapse manager** — list, copy, move, delete over FTPS, with
+  thumbnails and automatic `.avi` → `.mp4` conversion.
+- **Auto-sync** — pull a print's new timelapse automatically once idle.
+- **Light toggle** & **auto-config** via OctoPrint-BambuConnector.
+- **Security hardened** — access code never logged or exposed; printer TLS
+  floored at 1.2; privileged actions permission-gated; loopback-only snapshots.
 
 ## Supported printers
 
