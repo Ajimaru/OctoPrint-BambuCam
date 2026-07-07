@@ -49,6 +49,7 @@ def _make_octoprint_stubs() -> None:
     class _Perms:
         SETTINGS = _Perm()
         ADMIN = _Perm()
+        CONTROL = _Perm()
 
     op_access_permissions = types.SimpleNamespace(Permissions=_Perms)
 
@@ -155,6 +156,8 @@ def valid_config() -> dict:
 @pytest.fixture()
 def plugin():
     """BambucamPlugin with all OctoPrint injected attributes mocked."""
+    import threading
+
     from octoprint_bambucam import BambucamPlugin
 
     p = BambucamPlugin.__new__(BambucamPlugin)
@@ -163,6 +166,14 @@ def plugin():
     p._logger = logging.getLogger("test.plugin")
     p._identifier = "bambucam"
     p._plugin_version = "0.0.2"
+    p._ftp_lock = threading.Lock()
+    p._ftp_busy = False
+    p._thumb_lock = threading.Lock()
+    p._led_lock = threading.Lock()
+    p._led_busy = False
+    p._led_monitor = None
+    p._led_state = None
+    p._init_autosync()
 
     settings = MagicMock()
     settings.get_boolean = MagicMock(return_value=True)
@@ -172,6 +183,14 @@ def plugin():
     settings.get_plugin_logfile_path = MagicMock(
         return_value="/tmp/bambucam_http.log"  # noqa: S108
     )
+    settings.global_get_basefolder = MagicMock(
+        return_value="/tmp/bambucam_timelapse"  # noqa: S108
+    )
     p._settings = settings
     p._plugin_manager = MagicMock()
+
+    printer = MagicMock()
+    printer.is_printing = MagicMock(return_value=False)
+    printer.is_paused = MagicMock(return_value=False)
+    p._printer = printer
     return p
