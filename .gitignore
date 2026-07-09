@@ -1,14 +1,9 @@
 
-
-#Ignore vscode AI rules
-.github/instructions/codacy.instructions.md
-
 # Plugin / Python
 .venv*/
 *.pyc
 BambuCam.egg-info
 *.swp
-.idea
 *.iml
 build/
 dist/
@@ -23,14 +18,6 @@ dist/
 # package-lock.json IS committed so `npm ci` is reproducible in CI.
 /site/
 node_modules/
-
-#Development
-.ideas/
-.vscode/
-.development/
-.logs/
-.cache/
-.codacy/
 
 # Local-only tooling configs (not consumed by CI / pre-commit).
 # Editors and local tools read these directly; the GitHub workflows do not.
