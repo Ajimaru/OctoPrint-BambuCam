@@ -42,7 +42,13 @@ jobs:
         run: |
           TAG="${{ github.ref_name }}"
           TAG_LOWER="$(printf '%s' "$TAG" | tr '[:upper:]' '[:lower:]')"
-          if echo "$TAG_LOWER" | grep -qE '((^|[-.])(a|b|rc)([.-]?[0-9a-z]+)?($|\+))|((a|b|rc)[0-9]+$)'; then
+          # Prerelease = a/b/rc/dev segment in the VERSION part of the tag
+          # (PEP 440 style, digit or separator before it, e.g. 0.2.2rc1 or
+          # 0.2.2.dev6). The match must end at the tag end or at the local
+          # part ("+hash"), so a commit hash that happens to end in e.g.
+          # "b1" can never flip the detection (it did: "+ea8ceb1" matched
+          # the old pattern while "0.2.2rc1+" itself did not).
+          if echo "$TAG_LOWER" | grep -qE '(^|[-.0-9])(a|b|rc|dev)([.-]?[0-9]+)?($|\+)'; then
             echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
           else
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
