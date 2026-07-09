@@ -106,6 +106,29 @@ class TestTranscode:
         assert cmd[-1] == mp4 + ".part"
         assert "-f" in cmd and cmd[cmd.index("-f") + 1] == "mp4"
 
+    def test_threads_zero_preserved(self, logger, tmp_path):
+        """threads=0 (all cores) reaches ffmpeg as -threads 0, not 1.
+
+        Regression: ``threads or 1`` capped the intended 0 to a single core.
+        """
+        avi = str(tmp_path / "v.avi")
+        mp4 = str(tmp_path / "v.mp4")
+        open(avi, "wb").write(b"avi")
+        seen = {}
+
+        def runner(cmd, _to, _cb=None):
+            seen["cmd"] = cmd
+            with open(cmd[-1], "wb") as fh:
+                fh.write(b"mp4")
+            return 0, ""
+
+        t = TimelapseTranscoder(
+            logger, ffmpeg_path="/usr/bin/ffmpeg", threads=0, runner=runner
+        )
+        t.transcode(avi, mp4)
+        cmd = seen["cmd"]
+        assert cmd[cmd.index("-threads") + 1] == "0"
+
     def test_no_ffmpeg_raises(self, logger):
         """transcode() raises no_ffmpeg when ffmpeg is not configured."""
         t = TimelapseTranscoder(logger, ffmpeg_path=None)
@@ -147,32 +170,66 @@ class TestTranscode:
 class TestThumbnail:
     """Tests for TimelapseTranscoder.create_thumbnail()."""
 
-    def test_thumbnail_created(self, logger, tmp_path):
-        """create_thumbnail() writes a thumbnail and returns True."""
+    def test_thumbnail_created_from_last_frame(self, logger, tmp_path):
+        """create_thumbnail() seeks to the end (-sseof) and writes a thumb.
+
+        No OctoPrint ``ffmpegThumbnailCommandline`` is configured — the method
+        must build its own command and still succeed (regression: relying on
+        that template produced no thumbnail on recent OctoPrint).
+        """
         mp4 = str(tmp_path / "v.mp4")
         thumb = mp4 + ".thumb.jpg"
+        open(mp4, "wb").write(b"mp4")
+        seen = {}
+
+        def runner(cmd, _to, _cb=None):
+            seen["cmd"] = cmd
+            with open(cmd[-1], "wb") as fh:
+                fh.write(b"jpg")
+            return 0, ""
+
+        t = TimelapseTranscoder(
+            logger, ffmpeg_path="/usr/bin/ffmpeg", runner=runner
+        )
+        assert t.create_thumbnail(mp4, thumb) is True
+        assert os.path.exists(thumb)
+        assert "-sseof" in seen["cmd"]
+        assert seen["cmd"][seen["cmd"].index("-sseof") + 1] == "-1"
+
+    def test_thumbnail_no_ffmpeg_returns_false(self, logger):
+        """create_thumbnail() returns False when ffmpeg is not configured."""
+        t = TimelapseTranscoder(logger, ffmpeg_path=None)
+        assert t.create_thumbnail("v.mp4", "v.thumb.jpg") is False
+
+    def test_thumbnail_falls_back_to_start_frame(self, logger, tmp_path):
+        """An end-seek that fails is retried from the start (frame 0)."""
+        mp4 = str(tmp_path / "v.mp4")
+        open(mp4, "wb").write(b"mp4")
+        thumb = mp4 + ".thumb.jpg"
+        calls = []
+
+        def runner(cmd, _to, _cb=None):
+            calls.append(cmd)
+            if "-sseof" in cmd:
+                return 1, "seek fail"  # end-seek fails
+            with open(cmd[-1], "wb") as fh:
+                fh.write(b"jpg")
+            return 0, ""
+
+        t = TimelapseTranscoder(
+            logger, ffmpeg_path="/usr/bin/ffmpeg", runner=runner
+        )
+        assert t.create_thumbnail(mp4, thumb) is True
+        assert len(calls) == 2  # end-seek, then start-frame retry
+        assert "-sseof" not in calls[1]
+
+    def test_thumbnail_failure_non_fatal(self, logger, tmp_path):
+        """Both attempts failing returns False without raising."""
+        mp4 = str(tmp_path / "v.mp4")
         open(mp4, "wb").write(b"mp4")
         t = TimelapseTranscoder(
             logger,
             ffmpeg_path="/usr/bin/ffmpeg",
-            thumbnail_commandline='{ffmpeg} -i "{input}" "{output}"',
-            runner=_writing_runner(),
-        )
-        assert t.create_thumbnail(mp4, thumb) is True
-        assert os.path.exists(thumb)
-
-    def test_thumbnail_no_template_returns_false(self, logger):
-        """create_thumbnail() returns False without a command template."""
-        t = TimelapseTranscoder(logger, ffmpeg_path="/usr/bin/ffmpeg")
-        assert t.create_thumbnail("v.mp4", "v.thumb.jpg") is False
-
-    def test_thumbnail_failure_non_fatal(self, logger, tmp_path):
-        """A failing thumbnail run returns False without raising."""
-        mp4 = str(tmp_path / "v.mp4")
-        t = TimelapseTranscoder(
-            logger,
-            ffmpeg_path="/usr/bin/ffmpeg",
-            thumbnail_commandline='{ffmpeg} -i "{input}" "{output}"',
             runner=lambda cmd, to, cb=None: (1, "fail"),
         )
         assert t.create_thumbnail(mp4, mp4 + ".thumb.jpg") is False
@@ -186,9 +243,103 @@ def _fake_stream(text):
             self._it = iter(text)
 
         def read(self, _n):
+            """Return the next char of the prepared text, or '' at EOF."""
             return next(self._it, "")
 
     return _S()
+
+
+class TestGcodeThumbnail:
+    """Tests for TimelapseTranscoder.create_gcode_thumbnail()."""
+
+    def test_scales_preview_to_thumb(self, logger, tmp_path):
+        """A plate preview is scaled down and written to thumb_path."""
+        src = str(tmp_path / "plate_1.png")
+        thumb = str(tmp_path / "v.mp4.thumb.jpg")
+        open(src, "wb").write(b"png")
+        seen = {}
+
+        def runner(cmd, _to, _cb=None):
+            seen["cmd"] = cmd
+            open(cmd[-1], "wb").write(b"jpg")
+            return 0, ""
+
+        t = TimelapseTranscoder(
+            logger, ffmpeg_path="/usr/bin/ffmpeg", runner=runner
+        )
+        assert t.create_gcode_thumbnail(src, thumb) is True
+        assert os.path.isfile(thumb)
+        assert src in seen["cmd"]
+        assert "scale=640:-1" in seen["cmd"]
+
+    def test_empty_source_returns_false(self, logger, tmp_path):
+        """No preview PNG -> False without running ffmpeg."""
+        t = TimelapseTranscoder(
+            logger,
+            ffmpeg_path="/usr/bin/ffmpeg",
+            runner=_writing_runner(),
+        )
+        assert t.create_gcode_thumbnail("", str(tmp_path / "t.jpg")) is False
+
+    def test_unavailable_returns_false(self, logger, tmp_path):
+        """Without a configured ffmpeg the helper declines."""
+        t = TimelapseTranscoder(logger, ffmpeg_path=None)
+        assert (
+            t.create_gcode_thumbnail("plate.png", str(tmp_path / "t.jpg"))
+            is False
+        )
+
+    def test_ffmpeg_failure_returns_false(self, logger, tmp_path):
+        """A non-zero ffmpeg exit is reported as False (fallback kicks in)."""
+        t = TimelapseTranscoder(
+            logger,
+            ffmpeg_path="/usr/bin/ffmpeg",
+            runner=_writing_runner(rc=1, err="boom"),
+        )
+        assert (
+            t.create_gcode_thumbnail("plate.png", str(tmp_path / "t.jpg"))
+            is False
+        )
+
+    def test_runner_exception_returns_false(self, logger, tmp_path):
+        """An OSError from the runner is swallowed (best-effort thumb)."""
+
+        def boom(_cmd, _to, _cb=None):
+            raise OSError("no exec")
+
+        t = TimelapseTranscoder(
+            logger, ffmpeg_path="/usr/bin/ffmpeg", runner=boom
+        )
+        assert (
+            t.create_gcode_thumbnail("plate.png", str(tmp_path / "t.jpg"))
+            is False
+        )
+
+
+class TestTranscodeOsError:
+    """transcode() wraps filesystem errors as TranscodeError(io_error)."""
+
+    def test_replace_failure_raises_io_error(
+        self, logger, tmp_path, monkeypatch
+    ):
+        """An OSError moving the finished tmp file cleans up and re-raises."""
+        avi = str(tmp_path / "v.avi")
+        mp4 = str(tmp_path / "v.mp4")
+        open(avi, "wb").write(b"avi")
+
+        def boom_replace(_src, _dst):
+            raise OSError("disk gone")
+
+        monkeypatch.setattr(tc.os, "replace", boom_replace)
+        t = TimelapseTranscoder(
+            logger,
+            ffmpeg_path="/usr/bin/ffmpeg",
+            runner=_writing_runner(),
+        )
+        with pytest.raises(TranscodeError) as exc:
+            t.transcode(avi, mp4)
+        assert exc.value.reason == "io_error"
+        assert not os.path.exists(mp4 + ".part")
 
 
 class TestProgressParsing:
@@ -215,7 +366,6 @@ class TestProgressParsing:
 
             def kill(self):
                 """No-op kill (process already finished)."""
-                pass
 
         monkeypatch.setattr(tc.subprocess, "Popen", lambda *a, **k: FakeProc())
         seen = []
@@ -247,6 +397,40 @@ class TestProgressParsing:
         with pytest.raises(TranscodeError) as exc:
             tc._run_command(["ffmpeg"], 1800)
         assert exc.value.reason == "ffmpeg_failed"
+
+    def test_runner_cancel_kills(self, monkeypatch):
+        """A set cancel event kills the process and returns promptly.
+
+        Regression: the render queue's Cancel button set the event but the
+        long ffmpeg encode ran to completion because the event was never
+        polled inside the runner.
+        """
+        import threading
+
+        class FakeProc:
+            """Fake Popen streaming forever until killed."""
+
+            stderr = _fake_stream("frame=1 time=00:00:01.00\r" * 1000)
+            returncode = -9
+
+            def __init__(self):
+                self.killed = False
+
+            def kill(self):
+                """Record that the process was killed."""
+                self.killed = True
+
+            def wait(self):
+                """Return the process exit code."""
+                return self.returncode
+
+        proc = FakeProc()
+        monkeypatch.setattr(tc.subprocess, "Popen", lambda *a, **k: proc)
+        cancel = threading.Event()
+        cancel.set()  # already cancelled → killed on the first stderr line
+        rc, _tail = tc._run_command(["ffmpeg"], 1800, None, cancel)
+        assert proc.killed
+        assert rc == -9
 
     def test_runner_timeout_kills(self, monkeypatch):
         """Exceeding the timeout kills the process and raises timeout."""

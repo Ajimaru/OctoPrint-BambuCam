@@ -12,16 +12,18 @@ import os
 import shutil
 import threading
 import time
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 import flask
 from octoprint.events import Events, eventManager
 
 from .ftp import FtpError
+from .gcode_thumb import gcode_thumb_source
 from .paths import (
     DISK_MARGIN_BYTES,
     FALLBACK_STEM,
     MAX_COLLISION,
+    MAX_PREFIX_LEN,
     MAX_SUFFIX_LEN,
     sanitize_filename,
 )
@@ -43,6 +45,9 @@ class TimelapseOpsMixin:
     _printer: "PrinterInterface"
     _ftp_lock: threading.Lock
     _ftp_busy: bool
+    # OctoPrint base: <basedir>/data/bambucam. Used to locate Bambu Connector's
+    # sibling thumbs dir for the optional gcode-preview thumbnail.
+    get_plugin_data_folder: "Callable[[], str]"
 
     def _make_ftp(self):  # implemented on BambucamPlugin
         raise NotImplementedError
@@ -111,7 +116,7 @@ class TimelapseOpsMixin:
                 {"done": done, "total": total},
                 reason=exc.reason,
             )
-        except Exception:  # noqa: BLE001
+        except (RuntimeError, ValueError, TypeError, KeyError):
             self._logger.exception("timelapse batch failed")
             self._emit_op(
                 op, "", "error", {"done": done, "total": total}, reason="error"
@@ -181,6 +186,7 @@ class TimelapseOpsMixin:
             dest,
             on_start=_on_convert_start,
             on_progress=_on_convert_progress,
+            sd_name=name,
         )
 
         # Stamp the local file with the real (host) time. The Bambu camera
@@ -231,15 +237,18 @@ class TimelapseOpsMixin:
                     )[0],
                 },
             )
-        except Exception:  # noqa: BLE001 - never let an event break the batch
+        except (RuntimeError, ValueError, TypeError, AttributeError, KeyError):
+            # never let an event break the batch
             self._logger.debug("could not fire MovieDone", exc_info=True)
 
     def _make_transcoder(self) -> TimelapseTranscoder:
         """Build a transcoder from OctoPrint's own webcam ffmpeg config.
 
         Reuses ``webcam.ffmpeg`` (the binary OctoPrint already located for its
-        native timelapse rendering) plus its codec/bitrate/threads so we don't
-        add a second ffmpeg path or probe.
+        native timelapse rendering) plus its codec/bitrate so we don't add a
+        second ffmpeg path or probe. The thread count is our own
+        ``ffmpeg_threads`` setting, which governs *all* the plugin's ffmpeg
+        work (this transcode and the render worker) uniformly.
         """
         return TimelapseTranscoder(
             self._logger,
@@ -248,13 +257,15 @@ class TimelapseOpsMixin:
                 ["webcam", "ffmpegVideoCodec"]
             ),
             bitrate=self._settings.global_get(["webcam", "bitrate"]),
-            threads=self._settings.global_get_int(["webcam", "ffmpegThreads"]),
+            threads=self._settings.get_int(["ffmpeg_threads"]),
             thumbnail_commandline=self._settings.global_get(
                 ["webcam", "ffmpegThumbnailCommandline"]
             ),
         )
 
-    def _maybe_transcode(self, avi_path, *, on_start=None, on_progress=None):
+    def _maybe_transcode(
+        self, avi_path, *, on_start=None, on_progress=None, sd_name=None
+    ):
         """Re-encode a downloaded ``.avi`` to ``.mp4`` and drop the ``.avi``.
 
         Returns ``(final_path, warning)``: on success ``final_path`` is the new
@@ -285,7 +296,7 @@ class TimelapseOpsMixin:
         except TranscodeError as exc:
             self._logger.warning("transcode failed (%s): %s", exc.reason, exc)
             return avi_path, "transcode_failed"
-        transcoder.create_thumbnail(mp4_path, mp4_path + ".thumb.jpg")
+        self._write_timelapse_thumbnail(transcoder, mp4_path, sd_name)
         try:
             os.remove(avi_path)
         except OSError:
@@ -390,6 +401,23 @@ class TimelapseOpsMixin:
                 },
             )
 
+    def _write_timelapse_thumbnail(self, transcoder, mp4_path, sd_name) -> None:
+        """Write ``<mp4>.thumb.jpg`` — gcode preview (opt-in) or video frame.
+
+        When ``sd_thumb_from_gcode`` is on and the print job's Bambu Connector
+        preview PNG is found, that image is used as the thumbnail; otherwise it
+        falls back to the transcoder's last-frame thumbnail.
+        """
+        thumb = mp4_path + ".thumb.jpg"
+        if self._settings.get_boolean(["sd_thumb_from_gcode"]) and sd_name:
+            jobs = self._settings.get(["print_jobs"]) or {}
+            gcode = jobs.get(os.path.basename(sd_name))
+            if gcode:
+                src = gcode_thumb_source(self.get_plugin_data_folder(), gcode)
+                if src and transcoder.create_gcode_thumbnail(src, thumb):
+                    return
+        transcoder.create_thumbnail(mp4_path, thumb)
+
     def _convert_one(self, transcoder, name, avi_path, batch, summary) -> None:
         mp4_path = self._collision_safe_path(avi_path[: -len(".avi")] + ".mp4")
 
@@ -403,7 +431,7 @@ class TimelapseOpsMixin:
             summary["skipped"] += 1
             self._emit_convert(name, "error", batch, reason="transcode_failed")
             return
-        transcoder.create_thumbnail(mp4_path, mp4_path + ".thumb.jpg")
+        self._write_timelapse_thumbnail(transcoder, mp4_path, name)
         try:
             os.remove(avi_path)
         except OSError:
@@ -462,6 +490,25 @@ class TimelapseOpsMixin:
             return ""
         return cleaned[:MAX_SUFFIX_LEN]
 
+    def _sanitized_prefix(self, name) -> str:
+        """Job-name prefix ``<jobname>_`` for this SD video, or ``""``.
+
+        Enabled via ``prefix_job_name``. The job name comes from the
+        ``print_jobs`` map recorded at PrintDone (same trust chain as
+        ``print_dates`` — nothing on the SD card links a video to its print).
+        Videos without a recorded job get no prefix.
+        """
+        if not self._settings.get_boolean(["prefix_job_name"]):
+            return ""
+        jobs = self._settings.get(["print_jobs"]) or {}
+        job = jobs.get(os.path.basename(name))
+        if not job:
+            return ""
+        cleaned = sanitize_filename(str(job))
+        if cleaned in ("", ".", ".."):
+            return ""
+        return cleaned[:MAX_PREFIX_LEN] + "_"
+
     @staticmethod
     def _collision_safe(basefolder, stem, ext) -> Optional[str]:
         """Return a non-clobbering filename, appending ``-N`` if needed."""
@@ -479,25 +526,39 @@ class TimelapseOpsMixin:
         base = os.path.realpath(basefolder)
         return os.path.realpath(dest).startswith(base + os.sep)
 
-    def _canonical_local_name(self, name) -> str:
+    def _canonical_local_name(self, name, with_prefix: bool = True) -> str:
         """The §5.8 canonical local name (no ``-N`` collision counter).
 
-        Builds ``<stem><suffix><ext>``, sanitizes it, and substitutes a safe
-        fallback stem if sanitizing leaves nothing usable (§5.7 #6).
+        Builds ``<prefix><stem><suffix><ext>``, sanitizes it, and substitutes
+        a safe fallback stem if sanitizing leaves nothing usable (§5.7 #6).
+        ``with_prefix=False`` yields the pre-prefix-feature name, used to keep
+        recognizing files copied before the prefix option existed.
         """
         base = os.path.basename(name)
         if base.startswith(".") and base.count(".") == 1:
             stem, ext = "", base
         else:
             stem, ext = os.path.splitext(base)
+        prefix = self._sanitized_prefix(name) if with_prefix else ""
         suffix = self._sanitized_suffix()
         if not stem:
             stem = FALLBACK_STEM
-        candidate = sanitize_filename(f"{stem}{suffix}{ext}")
+        candidate = sanitize_filename(f"{prefix}{stem}{suffix}{ext}")
         cand_stem, _ = os.path.splitext(candidate)
         if not candidate or not cand_stem:
             candidate = sanitize_filename(f"{FALLBACK_STEM}{suffix}{ext}")
         return candidate
+
+    def _canonical_candidates(self, name) -> list:
+        """Canonical names to match a local copy against, prefixed first.
+
+        A video copied before the prefix option existed (or while it was off)
+        lives under the un-prefixed name; both spellings must count as
+        "already copied" or auto-sync would pull every old video again.
+        """
+        prefixed = self._canonical_local_name(name)
+        plain = self._canonical_local_name(name, with_prefix=False)
+        return [prefixed] if prefixed == plain else [prefixed, plain]
 
     def _local_copy_name(self, name) -> Optional[str]:
         """The local filename this SD video was copied to, or ``None``.
@@ -508,13 +569,13 @@ class TimelapseOpsMixin:
         the user which local file it became (e.g. the ``→ name.mp4`` hint).
         """
         basefolder = self._settings.global_get_basefolder("timelapse")
-        canonical = self._canonical_local_name(name)
-        if canonical.lower().endswith(".avi"):
-            mp4 = canonical[: -len(".avi")] + ".mp4"
-            if os.path.exists(os.path.join(basefolder, mp4)):
-                return mp4
-        if os.path.exists(os.path.join(basefolder, canonical)):
-            return canonical
+        for canonical in self._canonical_candidates(name):
+            if canonical.lower().endswith(".avi"):
+                mp4 = canonical[: -len(".avi")] + ".mp4"
+                if os.path.exists(os.path.join(basefolder, mp4)):
+                    return mp4
+            if os.path.exists(os.path.join(basefolder, canonical)):
+                return canonical
         return None
 
     def _already_copied(self, name) -> bool:

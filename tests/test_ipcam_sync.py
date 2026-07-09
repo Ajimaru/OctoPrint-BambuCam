@@ -467,6 +467,75 @@ class TestEventsAndId:
         assert captured.get("gcode") == "toolbox.gcode.3mf"
 
 
+class TestCancelHarvest:
+    """handle_cancel_harvest + the running-harvest cancel registration."""
+
+    def test_not_running(self, tmp_path):
+        """Without a running harvest the API reports not_running."""
+        import flask as _flask
+
+        host = Host(tmp_path, FakeIpcamFtp([]))
+        app = _flask.Flask(__name__)
+        with app.test_request_context():
+            payload = host.handle_cancel_harvest().get_json()
+        assert payload == {"ok": False, "reason": "not_running"}
+
+    def test_sets_running_event(self, tmp_path):
+        """With a registered harvest the API sets its cancel event."""
+        import flask as _flask
+
+        host = Host(tmp_path, FakeIpcamFtp([]))
+        cancel = threading.Event()
+        with host._ipcam_lock:  # register like a running _harvest
+            host._ipcam_cancel = cancel
+        app = _flask.Flask(__name__)
+        with app.test_request_context():
+            payload = host.handle_cancel_harvest().get_json()
+        assert payload["ok"] is True
+        assert cancel.is_set()
+
+    def test_harvest_registers_and_clears_cancel(self, tmp_path):
+        """_harvest exposes its cancel event while running, clears it after."""
+        ftp = FakeIpcamFtp(_listing(("a.avi", 10, 5)))
+        host = Host(tmp_path, ftp)
+        seen = []
+        host._pipeline_download_progress = (  # type: ignore[method-assign]
+            lambda transferred, total: seen.append(host._ipcam_cancel)
+        )
+        cancel = threading.Event()
+        host._harvest("2026-07-08 10:00", "gearbox.gcode", None, cancel)
+        # the mid-download callback saw the registered event…
+        assert seen and all(ev is cancel for ev in seen)
+        # …and after the harvest the slot is cleared again
+        assert host._ipcam_cancel is None
+
+    def test_cancelled_harvest_keeps_saved_chunks(self, tmp_path):
+        """Cancelling between chunks keeps what was saved (incomplete group).
+
+        The cancel event is set from the first chunk's progress callback —
+        like a Stop click during a long transfer. The first chunk was already
+        replaced into place by then, so it stays; the second is never pulled
+        and the terminal push reports the cancelled reason with got/want.
+        """
+        ftp = FakeIpcamFtp(_listing(("a.avi", 10, 1), ("b.avi", 10, 2)))
+        host = Host(tmp_path, ftp)
+        cancel = threading.Event()
+        host._pipeline_download_progress = (  # type: ignore[method-assign]
+            lambda transferred, total: cancel.set()
+        )
+        host._harvest("2026-07-08 10:00", "gearbox.gcode", None, cancel)
+        assert ftp.downloaded == ["a.avi"]
+        pushes = [
+            c.args[1]
+            for c in host._plugin_manager.send_plugin_message.call_args_list
+            if c.args[1].get("type") == "ipcam_download"
+        ]
+        assert pushes[-1]["state"] == "failed"
+        assert pushes[-1]["reason"] == "cancelled"
+        assert pushes[-1]["got"] == 1
+        assert pushes[-1]["want"] == 2
+
+
 class TestGcodeName:
     """_gcode_name extracts the file name from a payload."""
 

@@ -13,6 +13,7 @@ import pytest
 
 from octoprint_bambucam import ftp as ftp_mod
 from octoprint_bambucam.ftp import (
+    DOWNLOAD_TIMEOUT,
     MAX_THUMBNAIL_BYTES,
     BambuTimelapseFtp,
     FtpError,
@@ -39,6 +40,7 @@ class FakeFTP:
         connect_count=None,
     ):
         self.host = "printer"
+        self.timeout = 20  # mirrors ftplib.FTP.timeout (widened per download)
         self._mlsd = mlsd_data
         self._nlst = nlst_data or []
         self._sizes = sizes or {}
@@ -448,3 +450,41 @@ class TestConnection:
         assert fake.quit_called
         # idempotent
         svc.close()
+
+
+class TestIpcamHardening:
+    """AppleDouble filtering and the widened download timeout."""
+
+    def test_appledouble_stub_filtered(self, logger, patch_ftp):
+        """'._name.avi' resource-fork stubs are not listed as footage."""
+        fake = FakeFTP(
+            mlsd_data=[
+                ("a.avi", {"size": "100", "type": "file"}),
+                ("._a.avi", {"size": "4", "type": "file"}),
+            ]
+        )
+        patch_ftp(fake)
+        with BambuTimelapseFtp(logger, "h", "c") as svc:
+            files = svc.list_timelapses()
+        assert {f["name"] for f in files} == {"a.avi"}
+
+    def test_download_widens_and_restores_timeout(
+        self, logger, patch_ftp, tmp_path
+    ):
+        """The data-socket timeout is widened per download, then restored."""
+        seen = []
+        fake = FakeFTP(retr_chunks={"a.avi": [b"x" * 10]}, sizes={"a.avi": 10})
+
+        original_retr = fake.retrbinary
+
+        def spy_retr(cmd, callback):
+            seen.append(fake.timeout)
+            return original_retr(cmd, callback)
+
+        fake.retrbinary = spy_retr
+        patch_ftp(fake)
+        dest = str(tmp_path / "a.avi")
+        with BambuTimelapseFtp(logger, "h", "c") as svc:
+            svc.download("a.avi", dest)
+        assert seen == [DOWNLOAD_TIMEOUT]
+        assert fake.timeout == 20

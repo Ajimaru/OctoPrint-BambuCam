@@ -5,11 +5,13 @@ managing a ``webcamd`` daemon and exposing it through OctoPrint's webcam,
 settings, template and simple-API plugin mixins.
 """
 
+import contextlib
 import datetime
 import logging
 import logging.handlers
 import os
 import threading
+import urllib.parse
 import urllib.request
 from typing import TYPE_CHECKING, Optional
 
@@ -19,13 +21,22 @@ from octoprint.access.permissions import Permissions
 from octoprint.schema.webcam import RatioEnum, Webcam, WebcamCompatibility
 from octoprint.webcams import WebcamNotAbleToTakeSnapshotException
 
-from . import bambu_connector, connector_led
+from . import bambu_connector, connector_led, render_presets
 from ._version import VERSION as _PLUGIN_VERSION
 from .autosync import AutoSyncMixin
 from .daemon import WebcamdManager
 from .ftp import BambuTimelapseFtp, FtpError
+from .ipcam_ftp import BambuIpcamFtp
+from .ipcam_sync import IpcamSyncMixin
 from .mqtt import BambuMqttClient, BambuMqttMonitor, MqttError
 from .paths import sanitize_filename
+from .raw_files_ops import RawFilesOpsMixin
+from .render_paths import (
+    RAW_CHUNKS_DIRNAME,
+    RENDER_ROOT,
+    TRASH_DIRNAME,
+    WORK_DIRNAME,
+)
 from .timelapse_ops import TimelapseOpsMixin
 
 if TYPE_CHECKING:
@@ -58,6 +69,8 @@ DAEMON_SETTINGS = (
 class BambucamPlugin(
     TimelapseOpsMixin,
     AutoSyncMixin,
+    IpcamSyncMixin,
+    RawFilesOpsMixin,
     octoprint.plugin.StartupPlugin,
     octoprint.plugin.ShutdownPlugin,
     octoprint.plugin.SettingsPlugin,
@@ -99,6 +112,8 @@ class BambucamPlugin(
         self._led_monitor: Optional[BambuMqttMonitor] = None
         self._led_state: Optional[bool] = None
         self._init_autosync()
+        self._init_ipcam_sync()
+        self._init_raw_files()
 
     def initialize(self):
         self._manager = WebcamdManager(
@@ -125,6 +140,14 @@ class BambucamPlugin(
         return logger
 
     def on_after_startup(self):
+        # The render pipeline is independent of the webcamd daemon: recover
+        # interrupted render jobs and start the retention sweep even when the
+        # camera itself is disabled or unconfigured. It must never block the
+        # daemon start, so failures are logged, not raised.
+        try:
+            self.start_render_pipeline()
+        except Exception:  # noqa: BLE001  # pylint: disable=broad-except
+            self._logger.exception("render pipeline startup failed")
         if not self._settings.get_boolean(["enabled"]):
             self._logger.info("BambuCam is disabled, not starting webcamd")
             return
@@ -143,9 +166,20 @@ class BambucamPlugin(
             self._logger.error("could not start webcamd: %s", error)
 
     def on_shutdown(self):
+        self.stop_render_pipeline()
         self._stop_led_monitor()
         if self._manager is not None:
             self._manager.stop()
+
+    def on_event(self, event, payload) -> None:
+        """Fan a printer event out to both post-print pipelines.
+
+        ``AutoSyncMixin.on_event`` drives the render-gate flags and the serial
+        post-print pipeline; ``on_ipcam_event`` snapshots the ``/ipcam``
+        baseline at ``PrintStarted`` for pipeline stage 3.
+        """
+        AutoSyncMixin.on_event(self, event, payload)
+        self.on_ipcam_event(event, payload)
 
     def get_settings_defaults(self):
         return {
@@ -168,7 +202,14 @@ class BambucamPlugin(
             "max_restarts": 5,
             "restart_window": 300,
             "download_suffix": "",
+            # Prefix downloaded timelapses with the print job's file name
+            # (from the print_jobs map below), e.g.
+            # ``benchy.gcode.3mf_video_2026-05-18_08-07-44.mp4``.
+            "prefix_job_name": True,
             "transcode_to_mp4": True,
+            # Use the print job's gcode preview image (from Bambu Connector)
+            # as the SD-timelapse thumbnail instead of a video frame.
+            "sd_thumb_from_gcode": False,
             "auto_sync": False,
             # The A1 mini usually finishes rendering its timelapse *during*
             # the print, but not always: a measurement (plan §10.8) saw the
@@ -188,6 +229,33 @@ class BambucamPlugin(
             # card links a video to its real time. See the date note in
             # docs/reference/configuration.md.
             "print_dates": {},
+            # Map of SD-card video name -> gcode job name, captured with the
+            # print date. Labels manual /ipcam harvests with the real print.
+            "print_jobs": {},
+            # ── Raw Files render pipeline (plan §3) ────────────────────────
+            "render_enabled": True,
+            # Hides the "Raw Files" subtab (cosmetic only — the render
+            # pipeline itself keeps running while this is off).
+            "render_tab_visible": True,
+            "auto_download_ipcam": False,
+            "auto_render_new_groups": False,
+            "render_only_when_idle": True,
+            "default_preset": render_presets.DEFAULT_PRESET,
+            # Empty = fall back to OctoPrint's webcam.ffmpeg (and its
+            # sibling ffprobe) — an override is only for exotic installs.
+            "ffmpeg_path": "",
+            "ffprobe_path": "",
+            # 1 keeps a Raspberry Pi responsive; 0 = all cores.
+            "ffmpeg_threads": 1,
+            # 0 = use the transcoder's default timeout.
+            "render_timeout": 0,
+            "max_queue_size": 10,
+            # Reclaim a crashed render's lockfile after this many seconds.
+            "stale_lock_timeout": 86400,
+            # 0 = keep rendered groups' chunks forever.
+            "chunks_retention_days": 0,
+            "move_to_trash": True,
+            "raw_thumb_from_gcode": False,
         }
 
     def get_settings_restricted_paths(self):
@@ -237,6 +305,13 @@ class BambucamPlugin(
                 "template": "bambucam_tab.jinja2",
                 "custom_bindings": True,
             },
+            {
+                "type": "tab",
+                "name": "BambuCam Raw Files",
+                "template": "bambucam_raw.jinja2",
+                "suffix": "_raw",
+                "custom_bindings": True,
+            },
         ]
 
     def get_assets(self):
@@ -268,8 +343,12 @@ class BambucamPlugin(
     def take_webcam_snapshot(self, webcamName):
         if self._manager is None or not self._manager.is_running():
             raise WebcamNotAbleToTakeSnapshotException(self._webcam_name)
-        with urllib.request.urlopen(  # nosec B310 - fixed http://127.0.0.1 URL
-            self._loopback_url("snapshot"), timeout=10
+        url = self._loopback_url("snapshot")
+        parsed = urllib.parse.urlsplit(url)
+        if parsed.scheme != "http" or parsed.hostname != "127.0.0.1":
+            raise WebcamNotAbleToTakeSnapshotException(self._webcam_name)
+        with urllib.request.urlopen(  # nosec B310 - scheme/host checked above
+            url, timeout=10
         ) as response:
             yield response.read()
 
@@ -289,6 +368,22 @@ class BambucamPlugin(
             "delete_timelapses": ["names"],
             "list_local_avi": [],
             "convert_local_avi": ["names"],
+            # Raw Files render pipeline. Payload fields are validated in the
+            # handlers (bad_id/bad_jobid/... responses) rather than declared
+            # required here, so the UI gets consistent JSON errors instead of
+            # OctoPrint's generic 400.
+            "list_raw_footage": [],
+            "scan_raw": [],
+            "render_status": [],
+            "ffprobe_status": [],
+            "render_ffmpeg_status": [],
+            "pipeline_status": [],
+            "harvest_ipcam": [],
+            "cancel_harvest": [],
+            "start_render": [],
+            "cancel_render": [],
+            "delete_group": [],
+            "delete_chunks": [],
         }
 
     def is_api_protected(self) -> bool:
@@ -297,6 +392,9 @@ class BambucamPlugin(
     def on_api_get(self, request) -> flask.Response:
         if not Permissions.SETTINGS.can():
             flask.abort(403)
+        raw_thumb = request.args.get("raw_thumb")
+        if raw_thumb:
+            return self.handle_raw_thumb(raw_thumb)
         thumb_name = request.args.get("thumb")
         if thumb_name:
             return self._handle_thumbnail(thumb_name)
@@ -389,101 +487,177 @@ class BambucamPlugin(
         resp.headers["Cache-Control"] = "private, max-age=86400"
         return resp
 
+    # See _dispatch_raw_pipeline_command for the permission split.
+    _RAW_READ_COMMANDS = {
+        "list_raw_footage": "handle_list_raw_footage",
+        "scan_raw": "handle_scan_raw",
+        "render_status": "handle_render_status",
+        "ffprobe_status": "handle_ffprobe_status",
+        "render_ffmpeg_status": "handle_render_ffmpeg_status",
+        "pipeline_status": "handle_pipeline_status",
+    }
+    _RAW_ADMIN_COMMANDS = {
+        "harvest_ipcam": "handle_harvest_ipcam",
+        "cancel_harvest": "handle_cancel_harvest",
+        "start_render": "handle_start_render",
+        "cancel_render": "handle_cancel_render",
+        "delete_group": "handle_delete_group",
+        "delete_chunks": "handle_delete_chunks",
+    }
+
+    # Zero-arg, SETTINGS-permission commands that do not need the webcamd
+    # manager, dispatched via _dispatch_settings_command.
+    _SETTINGS_COMMANDS = ("detect_connector", "ffmpeg_status")
+
+    # Zero-arg, SETTINGS-permission commands that require the webcamd
+    # manager to be initialized, also dispatched via
+    # _dispatch_settings_command.
+    _MANAGER_SETTINGS_COMMANDS = (
+        "fetch_info",
+        "led_monitor_start",
+        "led_monitor_stop",
+        "list_timelapses",
+        "list_local_avi",
+    )
+
+    # ADMIN-only commands taking the raw ``data`` payload.
+    _TIMELAPSE_OPS = {
+        "copy_timelapses": "copy",
+        "move_timelapses": "move",
+        "delete_timelapses": "delete",
+    }
+
     def on_api_command(self, command, data) -> Optional[flask.Response]:
-        if command == "detect_connector":
-            if not Permissions.SETTINGS.can():
-                flask.abort(403)
-            return flask.jsonify(
-                ok=True, connector=self._detect_connector().as_dict()
-            )
+        response = self._dispatch_non_admin_command(command, data)
+        if response is not None:
+            return response
+        return self._dispatch_admin_command(command, data)
 
-        if command == "ffmpeg_status":
-            if not Permissions.SETTINGS.can():
-                flask.abort(403)
-            return flask.jsonify(
-                ok=True, ffmpeg=self._make_transcoder().status()
-            )
+    def _dispatch_non_admin_command(
+        self, command, data
+    ) -> Optional[flask.Response]:
+        """Commands with their own (non-ADMIN) permission check.
 
-        # fetch_info only reads (and the password is already redacted by the
-        # vendored webcam.py), so SETTINGS is enough; the rest needs ADMIN.
-        if self._manager is None:
-            flask.abort(500)
-        if command == "fetch_info":
-            if not Permissions.SETTINGS.can():
-                flask.abort(403)
-            info = self._manager.fetch_info()
-            if info is None:
-                return flask.jsonify(ok=False, reason="unreachable")
-            return flask.jsonify(ok=True, info=info)
+        Returns ``None`` for any command it doesn't own, so the caller falls
+        through to the ADMIN-gated dispatch.
+        """
+        response = self._dispatch_raw_pipeline_command(command, data)
+        if response is not None:
+            return response
 
         if command == "set_led":
             if not Permissions.CONTROL.can():
                 flask.abort(403)
             return self._handle_set_led(bool(data.get("on")))
 
-        if command == "led_monitor_start":
+        if command in self._SETTINGS_COMMANDS:
             if not Permissions.SETTINGS.can():
                 flask.abort(403)
-            return self._handle_led_monitor_start()
+            return self._dispatch_settings_command(command)
 
-        if command == "led_monitor_stop":
+        if command in self._MANAGER_SETTINGS_COMMANDS:
             if not Permissions.SETTINGS.can():
                 flask.abort(403)
-            self._stop_led_monitor()
-            return flask.jsonify(ok=True)
+            if self._manager is None:
+                flask.abort(500)
+            return self._dispatch_settings_command(command)
 
-        if command == "list_timelapses":
+        return None
+
+    def _dispatch_raw_pipeline_command(
+        self, command, data
+    ) -> Optional[flask.Response]:
+        """Raw Files pipeline commands, split by required permission.
+
+        Reads need SETTINGS (like the timelapse listing); anything that
+        transfers, renders or deletes needs ADMIN (like the SD-card batch
+        operations). These work without the webcamd manager.
+        """
+        if command in self._RAW_READ_COMMANDS:
             if not Permissions.SETTINGS.can():
                 flask.abort(403)
-            return self._handle_list_timelapses()
+            return getattr(self, self._RAW_READ_COMMANDS[command])()
 
-        if command == "list_local_avi":
-            if not Permissions.SETTINGS.can():
+        if command in self._RAW_ADMIN_COMMANDS:
+            if not Permissions.ADMIN.can():
                 flask.abort(403)
-            return flask.jsonify(ok=True, files=self._list_local_avi())
+            return getattr(self, self._RAW_ADMIN_COMMANDS[command])(data)
 
+        return None
+
+    def _dispatch_admin_command(
+        self, command, data
+    ) -> Optional[flask.Response]:
+        """Remaining commands, all requiring ADMIN permission."""
         if not Permissions.ADMIN.can():
             flask.abort(403)
 
-        if command in (
-            "copy_timelapses",
-            "move_timelapses",
-            "delete_timelapses",
-        ):
-            op = {
-                "copy_timelapses": "copy",
-                "move_timelapses": "move",
-                "delete_timelapses": "delete",
-            }[command]
+        if command in self._TIMELAPSE_OPS:
             names = data.get("names") or []
-            return self._handle_timelapse_op(op, names)
+            return self._handle_timelapse_op(
+                self._TIMELAPSE_OPS[command], names
+            )
 
         if command == "convert_local_avi":
             names = data.get("names") or []
             return self._handle_convert_local(names)
+
+        if self._manager is None:
+            flask.abort(500)
 
         if command == "restart":
             ok, error = self._manager.restart(self._daemon_config())
             return flask.jsonify(ok=ok, error=error)
 
         if command == "test_connection":
-            result = {}
-            done = threading.Event()
-            host = data["hostname"]
-            code = data["access_code"]
-            if not code:
-                host, code = self._effective_credentials()
+            return self._handle_test_connection(data)
 
-            def probe():
-                ok, reason = WebcamdManager.test_connection(host, code)
-                result["ok"] = ok
-                result["reason"] = reason
-                done.set()
+        return None
 
-            threading.Thread(target=probe, daemon=True).start()
-            if not done.wait(timeout=12):
-                return flask.jsonify(ok=False, reason="timeout")
-            return flask.jsonify(**result)
+    def _dispatch_settings_command(self, command) -> flask.Response:
+        """Zero-arg SETTINGS-permission commands (manager already checked
+        for those that need it)."""
+        if command == "detect_connector":
+            return flask.jsonify(
+                ok=True, connector=self._detect_connector().as_dict()
+            )
+        if command == "ffmpeg_status":
+            return flask.jsonify(
+                ok=True, ffmpeg=self._make_transcoder().status()
+            )
+        if command == "fetch_info":
+            assert self._manager is not None
+            info = self._manager.fetch_info()
+            if info is None:
+                return flask.jsonify(ok=False, reason="unreachable")
+            return flask.jsonify(ok=True, info=info)
+        if command == "led_monitor_start":
+            return self._handle_led_monitor_start()
+        if command == "led_monitor_stop":
+            self._stop_led_monitor()
+            return flask.jsonify(ok=True)
+        if command == "list_timelapses":
+            return self._handle_list_timelapses()
+        return flask.jsonify(ok=True, files=self._list_local_avi())
+
+    def _handle_test_connection(self, data) -> flask.Response:
+        result = {}
+        done = threading.Event()
+        host = data["hostname"]
+        code = data["access_code"]
+        if not code:
+            host, code = self._effective_credentials()
+
+        def probe():
+            ok, reason = WebcamdManager.test_connection(host, code)
+            result["ok"] = ok
+            result["reason"] = reason
+            done.set()
+
+        threading.Thread(target=probe, daemon=True).start()
+        if not done.wait(timeout=12):
+            return flask.jsonify(ok=False, reason="timeout")
+        return flask.jsonify(**result)
 
     def _detect_connector(self) -> bambu_connector.ConnectorInfo:
         """Best-effort probe of OctoPrint-BambuConnector's connection data."""
@@ -509,6 +683,45 @@ class BambucamPlugin(
         """Build a service from the effective printer credentials."""
         hostname, access_code = self._effective_credentials()
         return BambuTimelapseFtp(self._logger, hostname, access_code)
+
+    def _make_ipcam_ftp(self) -> BambuIpcamFtp:
+        """Build an ``/ipcam`` service from the effective credentials."""
+        hostname, access_code = self._effective_credentials()
+        return BambuIpcamFtp(self._logger, hostname, access_code)
+
+    @contextlib.contextmanager
+    def _webcam_paused_for_harvest(self):
+        """Stop the live stream while ``/ipcam`` chunks are pulled.
+
+        The printer serves FTPS at ~180 KB/s and the stream competes for the
+        same camera subsystem, so the daemon is stopped for the pull and
+        restarted afterwards. Best-effort in both directions — a pause or
+        resume failure must never break the harvest itself.
+        """
+        manager = self._manager
+        paused_manager: Optional[WebcamdManager] = None
+        if manager is not None and self._settings.get_boolean(["enabled"]):
+            try:
+                manager.stop()
+                paused_manager = manager
+                self._logger.info("webcamd paused for ipcam harvest")
+            except OSError:
+                self._logger.exception("could not pause webcamd for harvest")
+        try:
+            yield
+        finally:
+            if paused_manager is not None:
+                try:
+                    ok, error = paused_manager.start(self._daemon_config())
+                    if not ok:
+                        self._logger.error(
+                            "could not resume webcamd after harvest: %s",
+                            error,
+                        )
+                except OSError:
+                    self._logger.exception(
+                        "could not resume webcamd after harvest"
+                    )
 
     def _effective_serial(self) -> str:
         """Return the printer serial for MQTT, or ``""`` if unknown.
@@ -556,7 +769,8 @@ class BambucamPlugin(
             except MqttError as exc:
                 result["ok"] = False
                 result["reason"] = exc.reason
-            except Exception:  # noqa: BLE001 - never leak internals to client
+            # never leak internals to the client
+            except Exception:  # noqa: BLE001  # pylint: disable=broad-except
                 self._logger.exception("LED command failed")
                 result["ok"] = False
                 result["reason"] = "error"
@@ -615,7 +829,8 @@ class BambucamPlugin(
             self._plugin_manager.send_plugin_message(
                 self._identifier, {"type": "led_state", "on": on}
             )
-        except Exception:  # noqa: BLE001 - never let a push kill the MQTT loop
+        # never let a push kill the MQTT loop
+        except Exception:  # noqa: BLE001  # pylint: disable=broad-except
             self._logger.exception("could not push LED state")
 
     def _handle_list_timelapses(self) -> flask.Response:
@@ -720,6 +935,23 @@ class BambucamPlugin(
         """
         return ["avi"]
 
+    def get_additional_backup_excludes(self, excludes, *args, **kwargs):
+        """Exclude bulky render dirs from OctoPrint backups.
+
+        Chunks are re-harvestable from the printer's ``/ipcam`` folder and
+        the work/trash dirs are transient, so backing them up only bloats
+        the archive. When the user excludes "timelapse" from the backup the
+        rendered videos are gone anyway, so the whole render tree (incl.
+        thumbs/metadata) is dropped for consistency.
+        """
+        if "timelapse" in (excludes or []):
+            return [RENDER_ROOT]
+        return [
+            os.path.join(RENDER_ROOT, RAW_CHUNKS_DIRNAME),
+            os.path.join(RENDER_ROOT, WORK_DIRNAME),
+            os.path.join(RENDER_ROOT, TRASH_DIRNAME),
+        ]
+
     def _daemon_config(self):
         hostname, access_code = self._effective_credentials()
         return {
@@ -779,5 +1011,8 @@ __plugin_hooks__ = {
     ),
     "octoprint.timelapse.extensions": (
         __plugin_implementation__.get_timelapse_extensions
+    ),
+    "octoprint.plugin.backup.additional_excludes": (
+        __plugin_implementation__.get_additional_backup_excludes
     ),
 }

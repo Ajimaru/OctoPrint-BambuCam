@@ -401,4 +401,7 @@ class TestMonitor:
             def disconnect(self):
                 raise RuntimeError("no")
 
-        BambuMqttMonitor._teardown(cast(Any, AngryClient()))  # must not raise
+        mon = BambuMqttMonitor(
+            logger, "h", "c", "SER1", on_change=lambda _s: None
+        )
+        mon._teardown(cast(Any, AngryClient()))  # must not raise

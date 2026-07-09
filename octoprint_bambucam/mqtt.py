@@ -189,8 +189,8 @@ class BambuMqttClient:
                 client.loop_stop()
                 try:
                     client.disconnect()
-                except Exception:  # noqa: BLE001 - best-effort teardown
-                    pass
+                except (OSError, ValueError, RuntimeError):
+                    pass  # best-effort teardown
             self._logger.debug("LED command published to printer")
 
 
@@ -321,16 +321,17 @@ class BambuMqttMonitor:
             self._state = new_state
         try:
             self._on_change(new_state)
-        except Exception:  # noqa: BLE001 - callback must never kill the loop
+        except (OSError, RuntimeError, AttributeError, TypeError, ValueError):
+            # callback must never kill the MQTT loop
             self._logger.exception("LED state callback failed")
 
     @staticmethod
     def _teardown(client: mqtt.Client) -> None:
         try:
             client.loop_stop()
-        except Exception:  # noqa: BLE001 - best-effort teardown
-            pass
+        except (OSError, ValueError, RuntimeError):
+            pass  # best-effort teardown
         try:
             client.disconnect()
-        except Exception:  # noqa: BLE001 - best-effort teardown
-            pass
+        except (OSError, ValueError, RuntimeError):
+            pass  # best-effort teardown

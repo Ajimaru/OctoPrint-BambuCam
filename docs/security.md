@@ -46,7 +46,8 @@ All three printer connections floor the protocol at **TLS 1.2**
 
 - the **camera** port (6000) — `daemon.py` (connection test) and the vendored
   `webcam.py` (stream, local patch #5);
-- **FTPS** (990) for SD-card timelapses — `ftp.py`;
+- **FTPS** (990) for SD-card timelapses (`ftp.py`) and the raw `/ipcam`
+  chunk harvest (`ipcam_ftp.py`, which inherits the same TLS setup);
 - **MQTT** (8883) for light control — `mqtt.py`, used only as a fallback.
 
 Certificate and hostname verification stay disabled on all of them because Bambu
@@ -69,6 +70,10 @@ The SD-card and light operations are permission-gated and the access code is
   **ADMIN**, and `move`/`delete` are blocked while a print is running. A `move`
   deletes the SD original only after the local copy is verified byte-for-byte;
   downloads are size-checked against free disk space first.
+- The **Raw Files pipeline** follows the same split: list/scan/status reads
+  require **SETTINGS**; `harvest_ipcam`, `cancel_harvest`, `start_render`,
+  `cancel_render` and the group/chunk deletes require **ADMIN**, with
+  fetching/rendering/deleting blocked while a print runs.
 - The **light toggle** (`set_led`) requires **CONTROL**.
 
 ## Reporting

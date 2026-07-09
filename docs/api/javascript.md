@@ -30,6 +30,6 @@ and the webcam tab (MJPEG `<img>` with the computed stream URL).
 
 Knockout view model bound to the BambuCam settings dialog and webcam tab.
 
-| Param      | Type               | Description                                                                  |
-| ---------- | ------------------ | ---------------------------------------------------------------------------- |
-| parameters | <code>Array</code> | OctoPrint-injected dependencies: `[settingsViewModel, loginStateViewModel]`. |
+| Param      | Type               | Description                                                                                         |
+| ---------- | ------------------ | --------------------------------------------------------------------------------------------------- |
+| parameters | <code>Array</code> | OctoPrint-injected dependencies: `[settingsViewModel, loginStateViewModel, printerStateViewModel]`. |

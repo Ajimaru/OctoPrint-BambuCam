@@ -24,6 +24,7 @@ class FakeFTP:
 
     def __init__(self):
         self.cwd_path = None
+        self.timeout = 20  # mirrors ftplib.FTP.timeout (widened per download)
 
     def cwd(self, path):
         """Record the directory the service changed into."""

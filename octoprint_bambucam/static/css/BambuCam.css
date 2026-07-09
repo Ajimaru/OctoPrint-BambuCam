@@ -54,6 +54,68 @@
   float: right;
 }
 
+/* Total disk used by all raw chunk groups, shown after the toolbar buttons. */
+#tab_plugin_bambucam .bambucam_raw_diskusage {
+  margin-left: 0.75em;
+  white-space: nowrap;
+}
+
+/* Harvest progress shown to the right of "Disk used" while the pipeline runs. */
+#tab_plugin_bambucam .bambucam_raw_harvest {
+  margin-left: 1em;
+  white-space: nowrap;
+}
+
+#tab_plugin_bambucam .bambucam_harvest_progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+}
+
+#tab_plugin_bambucam .bambucam_harvest_bar {
+  display: inline-block;
+  width: 80px;
+  height: 8px;
+  margin: 0;
+  vertical-align: middle;
+}
+
+/* Live download speed beside the harvest count; tabular so it doesn't jitter. */
+#tab_plugin_bambucam .bambucam_harvest_speed {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9em;
+}
+
+/* Render queue: give the Print Job column the slack, since preset/state/
+   progress have known short maximum widths. Fixed layout so the widths hold. */
+#tab_plugin_bambucam .bambucam_queue_table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+#tab_plugin_bambucam .bambucam_col_preset {
+  width: 10em;
+}
+
+#tab_plugin_bambucam .bambucam_col_state {
+  width: 8em;
+}
+
+#tab_plugin_bambucam .bambucam_col_progress {
+  width: 5em;
+}
+
+#tab_plugin_bambucam .bambucam_col_printid {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Timelapse list-refresh hold banner while a copy/harvest is in flight. */
+#tab_plugin_bambucam .bambucam_pipeline_hold {
+  margin: 0.5em 0;
+}
+
 #tab_plugin_bambucam .bambucam_sort_menu .btn {
   margin-right: 0;
 }
@@ -84,6 +146,23 @@
   width: 2em;
 }
 
+/* Expanded chunk list of a raw-footage group. Bootstrap's `.table-hover`
+   paints hovered rows with a fixed light `#f5f5f5`, which dark themes
+   (Themeify etc.) do not override for this nested table — the whole block
+   flashes white with unreadable light text. Keep the expanded row and the
+   nested table transparent so they always inherit the active theme. */
+#tab_plugin_bambucam
+  .bambucam_raw_table
+  > tbody
+  > tr.bambucam_expanded_row:hover
+  > td,
+#tab_plugin_bambucam .bambucam_chunk_table,
+#tab_plugin_bambucam .bambucam_chunk_table > tbody > tr > td,
+#tab_plugin_bambucam .bambucam_chunk_table > tbody > tr:hover > td {
+  background: transparent;
+  color: inherit;
+}
+
 #tab_plugin_bambucam .bambucam_row_progress {
   margin: 0;
   min-width: 120px;
@@ -101,7 +180,7 @@
   font-size: 11px;
   line-height: 1;
   color: #fff;
-  text-shadow: 0 0 2px rgba(0, 0, 0, 0.7);
+  text-shadow: 0 0 2px rgb(0 0 0 / 70%);
   white-space: nowrap;
   pointer-events: none;
 }
@@ -156,7 +235,7 @@
   justify-content: center;
   width: 80px;
   height: 50px;
-  background: rgba(127, 127, 127, 0.15);
+  background: rgb(127 127 127 / 15%);
   border-radius: 3px;
   color: #888;
 }
@@ -166,7 +245,7 @@
   position: fixed;
   inset: 0;
   z-index: 10000;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgb(0 0 0 / 85%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -177,7 +256,7 @@
 #tab_plugin_bambucam .bambucam_lightbox img {
   max-width: 95vw;
   max-height: 95vh;
-  box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 30px rgb(0 0 0 / 60%);
 }
 
 #tab_plugin_bambucam .bambucam_local_avi {
@@ -203,4 +282,103 @@
 
 .bambucam_ffmpeg_status code {
   margin-left: 0.3em;
+}
+
+/* ── Settings help tooltips ───────────────────────────────────────────────
+   A small "?" circle beside an option; hovering (or focusing, for keyboard
+   users) reveals the full help text in a CSS-only tooltip bubble. Replaces the
+   old always-visible help-block text so the form reads cleanly. */
+.bambucam_help {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 0.4em;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  color: #888;
+  font-size: 11px;
+  font-weight: bold;
+  line-height: 1;
+  cursor: help;
+  vertical-align: middle;
+  opacity: 0.75;
+}
+
+.bambucam_help:hover,
+.bambucam_help:focus {
+  opacity: 1;
+  outline: none;
+}
+
+/* The bubble: hidden until hover/focus. Centered above the pointer (or the
+   icon on keyboard focus) and clamped to the viewport by a small JS helper in
+   BambuCam.js (`_positionHelpTooltip`) — position: fixed makes the coordinates
+   viewport-relative so the bubble can never be clipped by the dialog. */
+.bambucam_help .bambucam_help_text {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 2000;
+  width: 240px;
+  max-width: 78vw;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: #333;
+  color: #fff;
+  font-size: 12px;
+  font-weight: normal;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
+}
+
+/* Little arrow under the bubble; its x-offset follows the hover anchor via a
+   CSS variable set by the JS positioner (defaults to the bubble's center). */
+.bambucam_help .bambucam_help_text::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: var(--bambucam-arrow-x, 50%);
+  margin-left: -5px;
+  border: 5px solid transparent;
+  border-top-color: #333;
+}
+
+/* Flipped below the icon when there is no room above: arrow points upward. */
+.bambucam_help .bambucam_help_text.bambucam_help_text_below::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: #333;
+}
+
+.bambucam_help:hover .bambucam_help_text,
+.bambucam_help:focus .bambucam_help_text {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Visible info box kept under the two SD-card copy options (the slowness note
+   stays on-screen; the rest of their help moves into the ? tooltip). */
+.bambucam_copy_note {
+  margin-top: 0.5em;
+  padding: 8px 10px;
+  border-left: 3px solid #f0ad4e;
+  background: rgb(240 173 78 / 12%);
+  border-radius: 3px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.bambucam_copy_note i {
+  margin-right: 0.4em;
+  color: #f0ad4e;
 }

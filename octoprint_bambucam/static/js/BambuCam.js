@@ -14,7 +14,7 @@ $(function () {
      *
      * @class BambucamViewModel
      * @param {Array} parameters - OctoPrint-injected dependencies:
-     *   `[settingsViewModel, loginStateViewModel]`.
+     *   `[settingsViewModel, loginStateViewModel, printerStateViewModel]`.
      */
     function BambucamViewModel(parameters) {
         var self = this;
@@ -60,6 +60,10 @@ $(function () {
         // or "" (not probed yet); `path` is shown when present.
         self.ffmpegState = ko.observable("");
         self.ffmpegPath = ko.observable("");
+        self.ffprobeState = ko.observable("");
+        // Render-tab ffmpeg indicator (the render pipeline's resolved
+        // ffmpeg, not the transcoder's) — separate from ffmpegState above.
+        self.renderFfmpegState = ko.observable("");
 
         self.streamLoaded = ko.observable(false);
         self.streamError = ko.observable(false);
@@ -105,6 +109,108 @@ $(function () {
         });
         self._timelapseLoaded = false;
 
+        // ── Raw Files subtab (/ipcam chunk groups + render queue) ────────
+        self.activeSub = ko.observable("timelapse");
+        self.renderTabVisible = ko.observable(true);
+        self.rawGroups = ko.observableArray([]);
+        self.renderQueue = ko.observableArray([]);
+        self.rawLoading = ko.observable(false);
+        self._rawLoaded = false;
+        self.presetList = [
+            { value: "fast_720p", label: "Fast 720p" },
+            { value: "medium_1080p", label: "Medium 1080p" },
+            { value: "quality_1080p", label: "Quality 1080p" },
+            { value: "original", label: "Original (slow)" },
+        ];
+        /** Human label for a preset key, falling back to the key itself. */
+        self._presetLabel = function (value) {
+            for (var i = 0; i < self.presetList.length; i++) {
+                if (self.presetList[i].value === value) {
+                    return self.presetList[i].label;
+                }
+            }
+            return value;
+        };
+        self.readyCount = ko.pureComputed(function () {
+            return self.rawGroups().filter(function (g) {
+                return g.state() === "chunks_ready";
+            }).length;
+        });
+        self.renderedCount = ko.pureComputed(function () {
+            return self.rawGroups().filter(function (g) {
+                return g.state() === "rendered";
+            }).length;
+        });
+        self.renderingCount = ko.pureComputed(function () {
+            return self.rawGroups().filter(function (g) {
+                return g.rendering();
+            }).length;
+        });
+        self.queuedCount = ko.pureComputed(function () {
+            return self.renderQueue().filter(function (j) {
+                return j.state() === "queued";
+            }).length;
+        });
+        // Total disk space all raw chunk groups currently occupy on the Pi.
+        self.rawTotalSizeText = ko.pureComputed(function () {
+            var total = self.rawGroups().reduce(function (sum, g) {
+                return sum + (g.size || 0);
+            }, 0);
+            return self._fmtSize(total);
+        });
+
+        // ── Post-print pipeline state (mirrored from the backend) ────────
+        // While the copy/harvest pipeline runs we lock the Raw Files buttons,
+        // show a harvest progress bar, and hold the Timelapse auto-refresh so
+        // a mid-copy list reload can't disturb the FTP session.
+        self.pipelineBusy = ko.observable(false);
+        self.pipelineStage = ko.observable("");
+        self.pipelineChunkDone = ko.observable(0);
+        self.pipelineChunkTotal = ko.observable(0);
+        self.pipelineBytesPerSec = ko.observable(0);
+        // Stop button already clicked: disable it until the harvest actually
+        // ends (the abort is prompt, but the terminal push takes a moment).
+        self.harvestCancelPending = ko.observable(false);
+        // A pending Timelapse refresh we deferred because the pipeline was
+        // busy; flushed once the pipeline finishes.
+        self._timelapseRefreshDeferred = false;
+        self.pipelineHarvesting = ko.pureComputed(function () {
+            return (
+                self.pipelineBusy() &&
+                self.pipelineStage() === "harvest" &&
+                self.pipelineChunkTotal() > 0
+            );
+        });
+        self.pipelineProgressPercent = ko.pureComputed(function () {
+            var total = self.pipelineChunkTotal();
+            if (!total) return 0;
+            return Math.round((self.pipelineChunkDone() / total) * 100);
+        });
+        self.pipelineProgressText = ko.pureComputed(function () {
+            return self.pipelineChunkDone() + "/" + self.pipelineChunkTotal();
+        });
+        // Human-readable live download speed, e.g. "182 KB/s". Empty until a
+        // rate has been measured so the bar doesn't flash "0 B/s" at start.
+        self.pipelineSpeedText = ko.pureComputed(function () {
+            var bps = self.pipelineBytesPerSec();
+            if (!bps || bps <= 0) return "";
+            var units = ["B/s", "KB/s", "MB/s", "GB/s"];
+            var i = 0;
+            var v = bps;
+            while (v >= 1024 && i < units.length - 1) {
+                v /= 1024;
+                i++;
+            }
+            return (v >= 10 ? Math.round(v) : v.toFixed(1)) + " " + units[i];
+        });
+        self.showSub = function (which) {
+            self.activeSub(which);
+            if (which === "raw" && !self._rawLoaded) {
+                self._rawLoaded = true;
+                self.scanRaw();
+            }
+        };
+
         // List sort order, mirroring OctoPrint's native Timelapse tab. The
         // table binds to `sortedTimelapseFiles` (view only); selection and the
         // batch actions keep operating on the underlying `timelapseFiles`.
@@ -112,15 +218,24 @@ $(function () {
         self.sortedTimelapseFiles = ko.pureComputed(function () {
             var files = self.timelapseFiles().slice();
             var sort = self.timelapseSort();
-            // Date order uses the Bambu name (video_YYYY-MM-DD_HH-MM-SS), which
-            // sorts chronologically as a string — same source as the displayed
-            // date, so it is reliable even when the FTP server omits mtimes.
+            // Date order sorts by the same date the row displays: the real
+            // corrected date (copied file's mtime or recorded PrintDone time)
+            // when we have one, else the name-derived camera-clock date. Both
+            // are "YYYY-MM-DD HH:MM" strings, so string compare is
+            // chronological. Sorting by name instead would follow the frozen
+            // camera clock and scatter corrected entries through the list.
+            var dateKey = function (f) {
+                return (f.dateCorrected ? f.date : f.dateRaw) || "";
+            };
             var cmp = {
                 name_desc: function (a, b) {
                     return b.name.localeCompare(a.name);
                 },
                 date_desc: function (a, b) {
-                    return b.name.localeCompare(a.name);
+                    return (
+                        dateKey(b).localeCompare(dateKey(a)) ||
+                        b.name.localeCompare(a.name)
+                    );
                 },
                 size_desc: function (a, b) {
                     return (b.size || 0) - (a.size || 0);
@@ -275,7 +390,7 @@ $(function () {
          * @returns {string} e.g. `"~2m 05s"`, `"~12s"`.
          */
         self._formatEta = function (seconds) {
-            if (!isFinite(seconds) || seconds < 0) return "";
+            if (!Number.isFinite(seconds) || seconds < 0) return "";
             seconds = Math.round(seconds);
             if (seconds < 60) return "~" + seconds + "s";
             var m = Math.floor(seconds / 60);
@@ -378,6 +493,24 @@ $(function () {
         };
 
         /**
+         * Auto-refresh the Timelapse list, but hold while a copy/harvest runs.
+         *
+         * The post-print pipeline holds a single FTP session; an automatic list
+         * reload mid-copy would queue behind it and disturb the flow. So while
+         * `pipelineBusy` we skip the fetch, remember that one is due, and flush
+         * it once `_handlePipeline` sees the busy→idle edge. User-initiated
+         * refreshes (the toolbar button) still call `refreshTimelapses`
+         * directly — this hold only applies to automatic triggers.
+         */
+        self._refreshTimelapse = function () {
+            if (self.pipelineBusy()) {
+                self._timelapseRefreshDeferred = true;
+                return;
+            }
+            self.refreshTimelapses();
+        };
+
+        /**
          * Build a Knockout row for a local .avi awaiting conversion.
          *
          * @param {Object} f - `{name, size}` record from `list_local_avi`.
@@ -457,7 +590,7 @@ $(function () {
             );
         };
 
-        self._startOp = function (op, command) {
+        self._startOp = function (command) {
             var names = self.selectedNames();
             if (names.length === 0) return;
             self.opRunning(true);
@@ -529,6 +662,60 @@ $(function () {
             self._convertingToast = undefined;
         };
 
+        // Persistent "fetching raw footage" toast: shown when the user clicks
+        // Fetch from printer and kept up until the harvest ends (done/failed),
+        // since a /ipcam harvest can run for many minutes. It is sticky
+        // (hide: false) so it stays put; PNotify's sticky controls let the
+        // user dismiss it early.
+        self._harvestToast = undefined;
+
+        /** Show the persistent harvest toast (no-op if already up). */
+        self._showHarvestToast = function () {
+            if (self._harvestToast) return;
+            self._harvestToast = new PNotify({
+                title: "BambuCam",
+                text: gettext(
+                    "Fetching raw footage from printer… This can take " +
+                        "several minutes and may slow down the printer's " +
+                        "touchscreen until it is done.",
+                ),
+                type: "info",
+                hide: false,
+                icon: "fa fa-download",
+            });
+        };
+
+        /** Remove the persistent harvest toast (no-op if not up). */
+        self._hideHarvestToast = function () {
+            if (!self._harvestToast) return;
+            self._harvestToast.remove();
+            self._harvestToast = undefined;
+        };
+
+        // Persistent "copying timelapse" toast shown when the post-print
+        // pipeline auto-pulls the printer's SD timelapse; kept up until the
+        // pipeline finishes (busy→idle) so it doesn't vanish mid-copy.
+        self._autoSyncToast = undefined;
+
+        /** Show the persistent auto-sync copy toast (no-op if already up). */
+        self._showAutoSyncToast = function (text) {
+            if (self._autoSyncToast) return;
+            self._autoSyncToast = new PNotify({
+                title: "BambuCam",
+                text: text,
+                type: "info",
+                hide: false,
+                icon: "fa fa-copy",
+            });
+        };
+
+        /** Remove the persistent auto-sync copy toast (no-op if not up). */
+        self._hideAutoSyncToast = function () {
+            if (!self._autoSyncToast) return;
+            self._autoSyncToast.remove();
+            self._autoSyncToast = undefined;
+        };
+
         self.copySelected = function () {
             // Files already present in the timelapse folder (server set
             // `copied`) would land as a `-N` numbered duplicate. Warn first and
@@ -542,7 +729,7 @@ $(function () {
                     return row.name;
                 });
             if (dupes.length === 0) {
-                self._startOp("copy", "copy_timelapses");
+                self._startOp("copy_timelapses");
                 return;
             }
             var message =
@@ -558,7 +745,7 @@ $(function () {
                 message: message,
                 proceed: gettext("Copy again"),
                 onproceed: function () {
-                    self._startOp("copy", "copy_timelapses");
+                    self._startOp("copy_timelapses");
                 },
             });
         };
@@ -569,7 +756,7 @@ $(function () {
                 gettext("Move timelapses"),
                 names,
                 function () {
-                    self._startOp("move", "move_timelapses");
+                    self._startOp("move_timelapses");
                 },
             );
         };
@@ -580,7 +767,7 @@ $(function () {
                 gettext("Delete timelapses"),
                 names,
                 function () {
-                    self._startOp("delete", "delete_timelapses");
+                    self._startOp("delete_timelapses");
                 },
             );
         };
@@ -753,14 +940,13 @@ $(function () {
                     : gettext(
                           "Print finished — automatically copying %d new timelapse(s) from the printer.",
                       );
-            new PNotify({
-                title: "BambuCam",
-                text: text.replace("%d", n),
-                type: "info",
-                hide: true,
-            });
-            // refresh so the batch's per-file progress rows show up live
-            self.refreshTimelapses();
+            // Persistent: the copy + .avi→.mp4 transcode can take a while, so
+            // keep the toast up until the pipeline finishes (removed on the
+            // busy→idle edge in _handlePipeline / _fetchPipelineStatus).
+            self._showAutoSyncToast(text.replace("%d", n));
+            // refresh so the batch's per-file progress rows show up live —
+            // but held until the pipeline finishes if a copy/harvest is running
+            self._refreshTimelapse();
         };
 
         self._transcodeWarning = function (reason) {
@@ -863,11 +1049,15 @@ $(function () {
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(text);
             } else {
-                var tmp = $("<input>");
-                $("body").append(tmp);
-                tmp.val(text).select();
+                // Build the throwaway element via the DOM API (not a jQuery
+                // HTML string) and set its value as a property, so no markup is
+                // ever parsed from a string — nothing here is user-controlled.
+                var tmp = document.createElement("input");
+                document.body.appendChild(tmp);
+                tmp.value = text;
+                tmp.select();
                 document.execCommand("copy");
-                tmp.remove();
+                document.body.removeChild(tmp);
             }
         };
 
@@ -1080,6 +1270,43 @@ $(function () {
                 });
         };
 
+        /**
+         * Probe whether ffprobe (used to read raw-footage metadata) is
+         * configured and runnable, for the Render-settings indicator.
+         *
+         * @memberof BambucamViewModel
+         */
+        self.testFfprobe = function () {
+            self.ffprobeState("");
+            OctoPrint.simpleApiCommand("bambucam", "ffprobe_status", {})
+                .done(function (response) {
+                    var f = (response && response.ffprobe) || {};
+                    self.ffprobeState(f.executable ? "ok" : "missing");
+                })
+                .fail(function () {
+                    self.ffprobeState("missing");
+                });
+        };
+
+        /**
+         * Probe whether the render pipeline's ffmpeg (the Render-tab path
+         * override, or OctoPrint's webcam ffmpeg as fallback) is runnable,
+         * for the Render-settings indicator.
+         *
+         * @memberof BambucamViewModel
+         */
+        self.testFfmpeg = function () {
+            self.renderFfmpegState("");
+            OctoPrint.simpleApiCommand("bambucam", "render_ffmpeg_status", {})
+                .done(function (response) {
+                    var f = (response && response.ffmpeg) || {};
+                    self.renderFfmpegState(f.executable ? "ok" : "missing");
+                })
+                .fail(function () {
+                    self.renderFfmpegState("missing");
+                });
+        };
+
         self.testConnection = function () {
             var plugin = self.settings.plugins.bambucam;
             self.testing(true);
@@ -1183,10 +1410,18 @@ $(function () {
         self.onSettingsSaved = function () {
             // daemon may have been restarted with a new port → reconnect stream
             setTimeout(self._loadStream, 2000);
+            var plugin = self.settings.plugins.bambucam;
+            if (plugin.render_tab_visible) {
+                self.renderTabVisible(plugin.render_tab_visible());
+            }
         };
 
         self.onBeforeBinding = function () {
             self.settings = self.settingsViewModel.settings;
+            var plugin = self.settings.plugins.bambucam;
+            if (plugin.render_tab_visible) {
+                self.renderTabVisible(plugin.render_tab_visible());
+            }
         };
 
         self.onStartupComplete = function () {
@@ -1218,8 +1453,11 @@ $(function () {
                 self._syncHeaderBackground();
                 if (!self._timelapseLoaded) {
                     self._timelapseLoaded = true;
-                    self.refreshTimelapses();
+                    self._refreshTimelapse();
                 }
+                // Reconcile pipeline state on tab open (survives page reloads
+                // where the initial `pipeline` push was missed).
+                self._fetchPipelineStatus();
             }
             // The webcam stream lives in OctoPrint's Control tab; keep the live
             // light-state monitor open only while that tab is visible.
@@ -1291,6 +1529,18 @@ $(function () {
                 }
                 return;
             }
+            if (data.type === "render_job") {
+                self._handleRenderJob(data);
+                return;
+            }
+            if (data.type === "ipcam_download") {
+                self._handleIpcamDownload(data);
+                return;
+            }
+            if (data.type === "pipeline") {
+                self._handlePipeline(data);
+                return;
+            }
             if (data.type !== "daemon_state") return;
 
             if (data.state === "gave_up") {
@@ -1325,7 +1575,532 @@ $(function () {
             }
             self._fetchStatus();
         };
+
+        // ── Raw Files: helpers ───────────────────────────────────────────
+        /**
+         * Format a byte count as a short human-readable string.
+         * @param {number} bytes - Size in bytes.
+         * @returns {string} e.g. "1.2 GB".
+         */
+        self._fmtSize = function (bytes) {
+            if (!bytes) return "—";
+            var u = ["B", "KB", "MB", "GB", "TB"];
+            var i = 0;
+            var n = bytes;
+            while (n >= 1024 && i < u.length - 1) {
+                n /= 1024;
+                i++;
+            }
+            return n.toFixed(i ? 1 : 0) + " " + u[i];
+        };
+
+        /**
+         * Format a duration in seconds as ``M:SS`` (or ``—`` when unknown).
+         * @param {number} secs - Duration in seconds.
+         * @returns {string} Formatted duration.
+         */
+        self._fmtDuration = function (secs) {
+            if (!secs && secs !== 0) return "—";
+            var m = Math.floor(secs / 60);
+            var s = Math.floor(secs % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        };
+
+        /**
+         * Wrap a raw group payload from the API into a knockout row model.
+         * @param {Object} g - Group payload from `list_raw_footage`/`scan_raw`.
+         * @returns {Object} Observable-backed group row.
+         */
+        self._makeGroup = function (g) {
+            var row = {
+                printId: g.print_id,
+                state: ko.observable(g.state),
+                chunkCount: g.chunk_count,
+                hasThumb: ko.observable(!!g.has_thumb),
+                thumbUrl: self._rawThumbUrl(g.print_id),
+                expanded: ko.observable(false),
+                preset: ko.observable(self.presetList[0].value),
+                rendering: ko.observable(false),
+                renderPhase: ko.observable(""),
+                renderPercent: ko.observable(0),
+                durationText: self._fmtDuration(g.duration),
+                resolutionText:
+                    g.width && g.height ? g.width + "×" + g.height : "—",
+                size: g.size || 0,
+                sizeText: self._fmtSize(g.size),
+                // Tooltip for the "Rendered" badge: when + into which file.
+                renderedTitle: [g.rendered_at, g.rendered_output]
+                    .filter(Boolean)
+                    .join(" → "),
+                chunks: (g.chunks || []).map(function (c) {
+                    return {
+                        printId: g.print_id,
+                        file: c.file,
+                        slot: c.slot === undefined ? null : c.slot,
+                        present: !!c.present,
+                        included: ko.observable(!!c.included),
+                        sizeText: self._fmtSize(c.size),
+                    };
+                }),
+            };
+            return row;
+        };
+
+        /**
+         * Build the API GET URL for a group's raw-preview thumbnail.
+         * @param {string} printId - The group's print id.
+         * @returns {string} Thumbnail URL with a cache-busting token.
+         */
+        self._rawThumbUrl = function (printId) {
+            return (
+                OctoPrint.getSimpleApiUrl("bambucam") +
+                "?raw_thumb=" +
+                encodeURIComponent(printId) +
+                "&t=" +
+                Date.now()
+            );
+        };
+
+        /**
+         * Find a loaded group row by its print id.
+         * @param {string} printId - The group's print id.
+         * @returns {Object|undefined} The row, or undefined.
+         */
+        self._findGroup = function (printId) {
+            return self.rawGroups().find(function (g) {
+                return g.printId === printId;
+            });
+        };
+
+        // ── Raw Files: API actions ───────────────────────────────────────
+        /**
+         * Rescan the local raw-chunk library and refresh the table + queue.
+         * @memberof BambucamViewModel
+         */
+        self.scanRaw = function () {
+            self.rawLoading(true);
+            OctoPrint.simpleApiCommand("bambucam", "scan_raw", {})
+                .done(function (resp) {
+                    self._applyRaw(resp);
+                })
+                .always(function () {
+                    self.rawLoading(false);
+                });
+        };
+
+        /**
+         * Apply a `groups`/`jobs` API response to the observables.
+         * @param {Object} resp - Response with `groups` and `jobs` arrays.
+         */
+        self._applyRaw = function (resp) {
+            if (!resp || !resp.ok) return;
+            self.rawGroups((resp.groups || []).map(self._makeGroup));
+            var terminal = ["done", "failed", "cancelled"];
+            self.renderQueue(
+                (resp.jobs || [])
+                    .filter(function (j) {
+                        return terminal.indexOf(j.state) === -1;
+                    })
+                    .map(function (j) {
+                        return {
+                            jobid: j.jobid,
+                            printId: j.print_id,
+                            preset: self._presetLabel(j.preset),
+                            state: ko.observable(j.state),
+                            percent: ko.observable(j.percent || 0),
+                        };
+                    }),
+            );
+        };
+
+        /**
+         * Trigger a manual `/ipcam` harvest (admin fallback / re-harvest).
+         * @memberof BambucamViewModel
+         */
+        self.harvestIpcam = function () {
+            // Show the sticky "fetching" toast up front so it appears even
+            // before the pipeline reports busy; it is removed when the harvest
+            // ends (done/failed) or the pipeline goes idle.
+            self._showHarvestToast();
+            OctoPrint.simpleApiCommand("bambucam", "harvest_ipcam", {}).fail(
+                function () {
+                    // The request itself failed to even start the harvest;
+                    // don't leave a toast implying one is running.
+                    self._hideHarvestToast();
+                    new PNotify({
+                        title: "BambuCam",
+                        text: gettext("Request failed."),
+                        type: "error",
+                        hide: true,
+                    });
+                },
+            );
+        };
+
+        /**
+         * Abort the running /ipcam harvest (Stop button beside the bar).
+         *
+         * Chunks already downloaded are kept; the backend answers with a
+         * terminal `ipcam_download` push (reason "cancelled") that shows the
+         * toast and rescans the library, so no extra handling is needed here.
+         * @memberof BambucamViewModel
+         */
+        self.cancelHarvest = function () {
+            self.harvestCancelPending(true);
+            OctoPrint.simpleApiCommand("bambucam", "cancel_harvest", {}).fail(
+                function () {
+                    self.harvestCancelPending(false);
+                    new PNotify({
+                        title: "BambuCam",
+                        text: gettext("Request failed."),
+                        type: "error",
+                        hide: true,
+                    });
+                },
+            );
+        };
+
+        /**
+         * Queue a Concat + Render job for a group with its chunk selection.
+         * @memberof BambucamViewModel
+         * @param {Object} group - The group row.
+         */
+        self.startRender = function (group) {
+            var chunks = group.chunks
+                .filter(function (c) {
+                    return c.present && c.included();
+                })
+                .map(function (c) {
+                    return c.file;
+                });
+            OctoPrint.simpleApiCommand("bambucam", "start_render", {
+                print_id: group.printId,
+                preset: group.preset(),
+                chunks: chunks,
+            }).done(function (resp) {
+                if (resp && resp.ok) {
+                    group.rendering(true);
+                    group.renderPhase("queued");
+                } else {
+                    self._rawError(resp);
+                }
+            });
+        };
+
+        /**
+         * Cancel the running/queued render job for a group.
+         * @memberof BambucamViewModel
+         * @param {Object} group - The group row.
+         */
+        self.cancelRender = function (group) {
+            var job = self.renderQueue().find(function (j) {
+                return j.printId === group.printId;
+            });
+            if (!job) return;
+            OctoPrint.simpleApiCommand("bambucam", "cancel_render", {
+                jobid: job.jobid,
+            });
+        };
+
+        /**
+         * Discard a group's chunks (soft-delete to trash).
+         * @memberof BambucamViewModel
+         * @param {Object} group - The group row.
+         */
+        self.deleteGroup = function (group) {
+            OctoPrint.simpleApiCommand("bambucam", "delete_group", {
+                print_id: group.printId,
+            }).done(function (resp) {
+                if (resp && resp.ok) {
+                    self.rawGroups.remove(group);
+                } else {
+                    self._rawError(resp);
+                }
+            });
+        };
+
+        /**
+         * Permanently delete one chunk (and its slot-pair siblings).
+         *
+         * The backend expands the selection to the whole recording, so this
+         * removes every slot of the chunk's pair. Deletion is irreversible —
+         * confirm before calling. Rescans afterwards so size/status/emptied
+         * groups update.
+         * @param {Object} chunk - A chunk row (`printId`, `file`).
+         */
+        self.deleteChunk = function (chunk) {
+            var msg = gettext(
+                "Permanently delete this chunk and its slot pair? " +
+                    "This cannot be undone.",
+            );
+            if (!window.confirm(msg)) return;
+            OctoPrint.simpleApiCommand("bambucam", "delete_chunks", {
+                print_id: chunk.printId,
+                chunks: [chunk.file],
+            }).done(function (resp) {
+                if (resp && resp.ok) {
+                    self.scanRaw();
+                } else {
+                    self._rawError(resp);
+                }
+            });
+        };
+
+        /**
+         * Show a short error PNotify for a failed raw-files API call.
+         * @param {Object} resp - The API response carrying `reason`.
+         */
+        self._rawError = function (resp) {
+            new PNotify({
+                title: "BambuCam",
+                text:
+                    gettext("Action failed: ") + ((resp && resp.reason) || ""),
+                type: "error",
+                hide: true,
+            });
+        };
+
+        // ── Raw Files: push handlers ─────────────────────────────────────
+        /**
+         * Apply a `render_job` push message to the matching group + queue row.
+         * @param {Object} data - `{print_id, jobid, state, percent, ...}`.
+         */
+        self._handleRenderJob = function (data) {
+            var group = self._findGroup(data.print_id);
+            if (group) {
+                if (
+                    data.state === "concat" ||
+                    data.state === "render" ||
+                    data.state === "queued"
+                ) {
+                    group.rendering(true);
+                    group.renderPhase(data.state);
+                    group.renderPercent(data.percent || 0);
+                } else {
+                    group.rendering(false);
+                }
+            }
+            if (data.state === "done") {
+                // group stays listed; rescan picks up the rendered marker
+                // (state badge + tooltip) from the refreshed library
+                if (group) group.state("rendered");
+                if (self._rawLoaded) self.scanRaw();
+            } else if (data.state === "failed") {
+                if (group) group.state("failed");
+            }
+            self._syncQueueRow(data);
+        };
+
+        /**
+         * Update (or insert/remove) the render-queue table row for a job.
+         * @param {Object} data - Render-job push payload.
+         */
+        self._syncQueueRow = function (data) {
+            var existing = self.renderQueue().find(function (j) {
+                return j.jobid === data.jobid;
+            });
+            var terminal =
+                data.state === "done" ||
+                data.state === "failed" ||
+                data.state === "cancelled";
+            if (existing) {
+                if (terminal) {
+                    self.renderQueue.remove(existing);
+                } else {
+                    existing.state(data.state);
+                    existing.percent(data.percent || 0);
+                }
+            } else if (!terminal) {
+                self.renderQueue.push({
+                    jobid: data.jobid,
+                    printId: data.print_id,
+                    preset: "",
+                    state: ko.observable(data.state),
+                    percent: ko.observable(data.percent || 0),
+                });
+            }
+        };
+
+        /**
+         * Apply an `ipcam_download` push: toast on done/failed and rescan.
+         * @param {Object} data - `{print_id, state, reason, count}`.
+         */
+        self._handleIpcamDownload = function (data) {
+            if (data.state === "done") {
+                // Harvest finished: drop the persistent "fetching" toast and
+                // confirm with a transient toast. A zero-chunk "done" means the
+                // harvest ran but found nothing new on the card — say so rather
+                // than implying footage was fetched.
+                self._hideHarvestToast();
+                new PNotify({
+                    title: "BambuCam",
+                    text:
+                        data.count === 0
+                            ? gettext("No new raw footage on the printer.")
+                            : gettext("Raw footage fetched from printer."),
+                    type: data.count === 0 ? "info" : "success",
+                    hide: true,
+                });
+                if (self._rawLoaded) self.scanRaw();
+            } else if (data.state === "failed") {
+                self._hideHarvestToast();
+                new PNotify({
+                    title: "BambuCam",
+                    text: self._ipcamFailText(data),
+                    type: "error",
+                    hide: false,
+                });
+                if (self._rawLoaded) self.scanRaw();
+            }
+        };
+
+        /**
+         * Build a specific failure message for a failed /ipcam harvest.
+         *
+         * The printer serves /ipcam slowly (~180 KB/s), so a partial pull is
+         * the common failure. Report the reason and how many of the expected
+         * chunks were secured so the user knows whether to just retry.
+         * @param {Object} data - `{reason, got, want}`.
+         */
+        self._ipcamFailText = function (data) {
+            var got = data.got || 0;
+            var want = data.want || 0;
+            var progress =
+                want > 0
+                    ? " (" + got + "/" + want + " " + gettext("chunks") + ")"
+                    : "";
+            if (data.reason === "no_space") {
+                return gettext("Not enough disk space for the raw chunks.");
+            }
+            if (data.reason === "cancelled") {
+                return gettext("Harvest cancelled.") + progress;
+            }
+            if (data.reason === "incomplete") {
+                return (
+                    gettext(
+                        'Harvest incomplete — the printer\'s slow transfer was interrupted. Try "Fetch from printer" again.',
+                    ) + progress
+                );
+            }
+            return (
+                gettext(
+                    "Chunks not secured — fetch from printer in the Raw Files tab.",
+                ) + progress
+            );
+        };
+
+        /**
+         * Apply a `pipeline` push: mirror the post-print pipeline's progress.
+         *
+         * While busy the Raw Files buttons lock and the harvest bar shows; the
+         * Timelapse tab holds its auto-refresh. On the busy→idle edge a
+         * deferred Timelapse refresh is flushed and the raw library rescanned.
+         * @param {Object} data - `{busy, stage, chunk_done, chunk_total,
+         *     bytes_per_sec}`.
+         */
+        self._handlePipeline = function (data) {
+            var wasBusy = self.pipelineBusy();
+            self.pipelineBusy(!!data.busy);
+            self.pipelineStage(data.stage || "");
+            self.pipelineChunkDone(data.chunk_done || 0);
+            self.pipelineChunkTotal(data.chunk_total || 0);
+            self.pipelineBytesPerSec(data.bytes_per_sec || 0);
+            if (wasBusy && !data.busy) {
+                // Pipeline finished: flush the held Timelapse refresh and
+                // pick up any newly harvested groups. Also a safety net for the
+                // harvest toast in case the terminal ipcam_download push was
+                // missed (the toast is normally dropped by _handleIpcamDownload).
+                self.harvestCancelPending(false);
+                self._hideHarvestToast();
+                self._hideAutoSyncToast();
+                if (self._timelapseRefreshDeferred) {
+                    self._timelapseRefreshDeferred = false;
+                    self.refreshTimelapses();
+                }
+                if (self._rawLoaded) self.scanRaw();
+            }
+        };
+
+        /**
+         * Fetch the current pipeline status once (tab open / after reload) so
+         * the UI reflects an in-flight copy/harvest even if we missed its push.
+         */
+        self._fetchPipelineStatus = function () {
+            OctoPrint.simpleApiCommand("bambucam", "pipeline_status", {}).done(
+                function (resp) {
+                    if (!resp || !resp.ok || !resp.pipeline) return;
+                    var p = resp.pipeline;
+                    var wasBusy = self.pipelineBusy();
+                    self.pipelineBusy(!!p.busy);
+                    self.pipelineStage(p.stage || "");
+                    self.pipelineChunkDone(p.chunk_done || 0);
+                    self.pipelineChunkTotal(p.chunk_total || 0);
+                    self.pipelineBytesPerSec(p.bytes_per_sec || 0);
+                    // If the pipeline is idle but a Timelapse refresh was held
+                    // (or we reconciled after the busy→idle push was missed
+                    // while the tab was closed), the "Copy in progress" banner
+                    // clears but the list would otherwise stay stale/empty.
+                    // Flush the deferred refresh, or refresh anyway on the edge.
+                    if (
+                        !p.busy &&
+                        (self._timelapseRefreshDeferred || wasBusy)
+                    ) {
+                        self._timelapseRefreshDeferred = false;
+                        self._hideHarvestToast();
+                        self._hideAutoSyncToast();
+                        self.refreshTimelapses();
+                        if (self._rawLoaded) self.scanRaw();
+                    }
+                },
+            );
+        };
     }
+
+    /**
+     * Position a "?" help tooltip centered above the mouse pointer (or the
+     * icon itself on keyboard focus), clamped to the viewport so it can never
+     * be clipped by the settings dialog. Flips below the icon when there is
+     * no room above. The bubble uses position: fixed, so all coordinates are
+     * viewport-relative.
+     *
+     * @param {HTMLElement} icon - The hovered/focused `.bambucam_help` span.
+     * @param {number|null} pointerX - clientX of the mouse, null for focus.
+     */
+    function _positionHelpTooltip(icon, pointerX) {
+        var tip = icon.querySelector(".bambucam_help_text");
+        if (!tip) return;
+        var rect = icon.getBoundingClientRect();
+        var anchorX =
+            typeof pointerX === "number" && isFinite(pointerX)
+                ? pointerX
+                : rect.left + rect.width / 2;
+        // visibility: hidden still lays the bubble out, so it is measurable
+        // before the :hover rule fades it in.
+        var tipW = tip.offsetWidth;
+        var tipH = tip.offsetHeight;
+        var margin = 8;
+        var left = anchorX - tipW / 2;
+        left = Math.max(
+            margin,
+            Math.min(left, window.innerWidth - tipW - margin),
+        );
+        var top = rect.top - tipH - 10;
+        var below = top < margin;
+        if (below) top = rect.bottom + 10;
+        tip.classList.toggle("bambucam_help_text_below", below);
+        tip.style.left = left + "px";
+        tip.style.top = top + "px";
+        // Keep the little arrow pointing at the anchor even when clamped.
+        var arrowX = Math.max(10, Math.min(anchorX - left, tipW - 10));
+        tip.style.setProperty("--bambucam-arrow-x", arrowX + "px");
+    }
+
+    $(document).on("mouseenter", ".bambucam_help", function (e) {
+        _positionHelpTooltip(this, e.clientX);
+    });
+    $(document).on("focusin", ".bambucam_help", function () {
+        _positionHelpTooltip(this, null);
+    });
 
     OCTOPRINT_VIEWMODELS.push({
         construct: BambucamViewModel,

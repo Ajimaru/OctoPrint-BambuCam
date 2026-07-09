@@ -17,10 +17,12 @@ How BambuCam handles credentials and printer connections:
   (see `octoprint_bambucam/vendor/webcamd_bambu/UPSTREAM.md`).
 - **Loopback.** Snapshot and live-stream paths always connect via `127.0.0.1`
   regardless of the bind-address setting.
-- **Printer TLS.** The camera, FTPS (timelapses) and MQTT (light control)
+- **Printer TLS.** The camera, FTPS (timelapses and raw `/ipcam` footage) and
+  MQTT (light control)
   connections use the printer's self-signed certificate, so certificate/hostname
   verification is intentionally disabled (the printer has no stable hostname).
-- **Privileged actions.** SD-card writes (move/delete) and the light toggle are
+- **Privileged actions.** SD-card writes (move/delete), the raw-footage
+  harvest/render/delete operations and the light toggle are
   permission-gated, blocked while a print is running where relevant, and a move
   only deletes the original after the local copy is verified byte-for-byte;
   downloads are size-checked against free disk space before they start.

@@ -11,6 +11,8 @@ import os
 import re
 from typing import Callable, Optional
 
+from .transcode import TranscodeError
+
 # Bambu Connector's data folder (sibling of our own plugin data folder) and the
 # per-job preview it writes there.
 _CONNECTOR_DIRNAME = "bambu_connector"
@@ -130,6 +132,7 @@ def write_gcode_thumbnail(
     ]
     try:
         rc, _err = runner(cmd, timeout, None, None)
-    except Exception:  # noqa: BLE001 - thumbnail is cosmetic, never fatal
+    except (TranscodeError, OSError, ValueError):
+        # thumbnail is cosmetic, never fatal
         return False
     return rc == 0 and os.path.isfile(thumb_path)

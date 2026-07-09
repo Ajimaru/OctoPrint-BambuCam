@@ -13,13 +13,22 @@ import os
 import socket
 import ssl
 import threading
-from typing import Callable, Optional
+from typing import Callable, Optional, TypeVar
+
+#: Bound to the (possibly subclassed) service so ``__enter__`` returns the
+#: concrete type — ``with BambuIpcamFtp(...) as svc`` keeps ``svc`` typed as
+#: ``BambuIpcamFtp``, not the base, so its extra methods stay visible.
+_FtpT = TypeVar("_FtpT", bound="BambuTimelapseFtp")
 
 VIDEO_EXTENSIONS = (".mp4", ".avi")
 TIMELAPSE_DIR = "/timelapse"
 THUMBNAIL_DIR = "/timelapse/thumbnail"
 MAX_THUMBNAIL_BYTES = 4 * 1024 * 1024
 CONNECT_TIMEOUT = 20
+# The A1 mini serves /ipcam at ~180 KB/s, so one ~135 MB chunk takes ~12 min.
+# The data socket for a download gets this widened timeout (the 20 s connect
+# timeout stays); it only trips on a genuine stall, not on a slow transfer.
+DOWNLOAD_TIMEOUT = 1200
 
 
 class FtpError(Exception):
@@ -107,6 +116,10 @@ class BambuTimelapseFtp:
     All operations are serialized by a per-instance lock.
     """
 
+    #: Remote folder this service lists/downloads from. Subclasses
+    #: (``BambuIpcamFtp``) override it to reuse the session machinery.
+    LIST_DIR = TIMELAPSE_DIR
+
     def __init__(
         self,
         logger,
@@ -122,7 +135,7 @@ class BambuTimelapseFtp:
         self._ftp: Optional[ImplicitFTP_TLS] = None
         self._lock = threading.Lock()
 
-    def __enter__(self) -> "BambuTimelapseFtp":
+    def __enter__(self: _FtpT) -> _FtpT:
         self.open()
         return self
 
@@ -196,12 +209,13 @@ class BambuTimelapseFtp:
 
         Tries ``MLSD`` (size + modify time) first, falls back to ``NLST`` +
         ``size()``. An empty or missing folder is a valid empty result, not an
-        error. Filters to :data:`VIDEO_EXTENSIONS`.
+        error. Filters to :data:`VIDEO_EXTENSIONS`. Lists ``LIST_DIR`` so
+        subclasses (``BambuIpcamFtp``) can point at another folder.
         """
         with self._lock:
             ftp = self._conn
             try:
-                ftp.cwd(TIMELAPSE_DIR)
+                ftp.cwd(self.LIST_DIR)
             except ftplib.error_perm:
                 return []
             try:
@@ -241,6 +255,10 @@ class BambuTimelapseFtp:
 
     @staticmethod
     def _is_video(name: str) -> bool:
+        # "._name.avi" AppleDouble/resource-fork stubs the printer's FTP
+        # sometimes lists are metadata, not footage.
+        if name.startswith("._"):
+            return False
         return name.lower().endswith(VIDEO_EXTENSIONS)
 
     def remote_size(self, name: str) -> Optional[int]:
@@ -281,7 +299,15 @@ class BambuTimelapseFtp:
         written = 0
         with self._lock:
             ftp = self._conn
+            # Widen the timeout for the transfer only: ftplib passes
+            # ``ftp.timeout`` to the passive-mode data connection, and the
+            # printer's ~180 KB/s /ipcam link makes a chunk take ~12 min.
+            prev_timeout = ftp.timeout
+            ftp.timeout = DOWNLOAD_TIMEOUT
             try:
+                # RETR with a bare name needs the right cwd; a fresh session
+                # starts at "/" and would 550 (observed for /ipcam chunks).
+                ftp.cwd(self.LIST_DIR)
                 fd = os.open(tmp_path, flags, 0o644)
                 with os.fdopen(fd, "wb") as fh:
 
@@ -297,6 +323,8 @@ class BambuTimelapseFtp:
             except Exception:
                 self._cleanup(tmp_path)
                 raise
+            finally:
+                ftp.timeout = prev_timeout
         self._logger.debug(
             "downloaded %s (%d bytes) to %s", name, written, folder
         )

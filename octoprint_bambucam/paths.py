@@ -13,7 +13,12 @@ _BAMBU_TS_RE = re.compile(r"(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})")
 
 DISK_MARGIN_BYTES = 50 * 1024 * 1024
 FALLBACK_STEM = "bambu-timelapse"
+# Fallback print-id stem when PrintDone carries no usable gcode name (e.g. a
+# manual "Fetch from printer"). Kept distinct from FALLBACK_STEM so the raw
+# group's shown name reads clearly without renaming the timelapse output file.
+FALLBACK_PRINT_STEM = "unknown-print"
 MAX_SUFFIX_LEN = 32
+MAX_PREFIX_LEN = 64
 MAX_COLLISION = 1000
 
 

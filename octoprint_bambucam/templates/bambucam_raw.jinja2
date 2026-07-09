@@ -36,6 +36,12 @@
             <span data-bind="text: pipelineProgressText"></span>
             <span class="text-muted bambucam_harvest_speed"
                   data-bind="visible: pipelineSpeedText, text: pipelineSpeedText"></span>
+            <button class="btn btn-mini btn-danger"
+                    type="button"
+                    title="{{ _('Stop harvesting — chunks already downloaded are kept') }}"
+                    data-bind="visible: loginState.isAdmin, click: cancelHarvest, enable: !harvestCancelPending()">
+                <i class="fas fa-stop"></i> {{ _("Stop") }}
+            </button>
         </span>
     </span>
 </div>
@@ -197,4 +203,9 @@
             </tr>
         </tbody>
     </table>
+</div>
+<!-- ── Thumbnail lightbox overlay (same viewmodel as the Timelapse tab) ── -->
+<div class="bambucam_lightbox"
+     data-bind="visible: lightboxUrl, click: hideThumbnail">
+    <img data-bind="attr: { src: lightboxUrl }" alt="{{ _('Preview') }}" />
 </div>

@@ -23,6 +23,7 @@ import shutil
 import threading
 from typing import TYPE_CHECKING, Callable, Optional
 
+import flask
 from octoprint.events import Events
 
 from . import render_paths
@@ -80,6 +81,8 @@ class IpcamSyncMixin:
     # the live stream during the pull so it doesn't compete for the printer's
     # slow FTPS link. Callable-typed for the same MRO reason as the above.
     _webcam_paused_for_harvest: Callable
+    # ``_print_active`` (TimelapseOpsMixin) gates the manual-harvest API.
+    _print_active: "Callable[[], bool]"
 
     def _make_ipcam_ftp(self) -> BambuIpcamFtp:  # pragma: no cover - on plugin
         raise NotImplementedError
@@ -88,6 +91,9 @@ class IpcamSyncMixin:
         """Initialize ipcam-sync state. Call from the plugin ``__init__``."""
         self._ipcam_lock = threading.Lock()
         self._ipcam_baseline: Optional[dict] = None
+        # Cancel event of the harvest currently running (pipeline stage 3 or
+        # manual); registered by ``_harvest`` so ``handle_cancel_harvest`` can
+        # abort it from the UI. ``None`` while no harvest runs.
         self._ipcam_cancel: Optional[threading.Event] = None
         # Serializes overlapping manual harvests so they queue back-to-back
         # instead of cancelling each other (see ``harvest_now``).
@@ -135,19 +141,31 @@ class IpcamSyncMixin:
         Shared by the post-print pipeline (real ``PRINT_STARTED`` baseline) and
         the manual "Scan /ipcam now" fallback (``baseline=None`` → newest-chunks
         cap). Logs the outcome at INFO so every harvest is traceable.
+
+        Registers ``cancel`` as the running harvest's cancel event for the
+        duration, so the Stop button (``handle_cancel_harvest``) can abort
+        either harvest path mid-transfer.
         """
-        chunks = self._diff_ipcam(baseline)
-        if not chunks:
-            self._logger.info("ipcam harvest: no new chunks")
-            # Emit a terminal push so a client that showed a "fetching" toast
-            # for a manual harvest can drop it — there is simply nothing new.
-            self._notify_download("", "done", count=0)
-            return
-        print_id = self._unique_print_id(when, gcode)
-        self._logger.info(
-            "ipcam harvest: %d new chunk(s) -> %s", len(chunks), print_id
-        )
-        self._download_group(print_id, chunks, cancel)
+        with self._ipcam_lock:
+            self._ipcam_cancel = cancel
+        try:
+            chunks = self._diff_ipcam(baseline)
+            if not chunks:
+                self._logger.info("ipcam harvest: no new chunks")
+                # Emit a terminal push so a client that showed a "fetching"
+                # toast for a manual harvest can drop it — there is simply
+                # nothing new.
+                self._notify_download("", "done", count=0)
+                return
+            print_id = self._unique_print_id(when, gcode)
+            self._logger.info(
+                "ipcam harvest: %d new chunk(s) -> %s", len(chunks), print_id
+            )
+            self._download_group(print_id, chunks, cancel)
+        finally:
+            with self._ipcam_lock:
+                if self._ipcam_cancel is cancel:
+                    self._ipcam_cancel = None
 
     def _snapshot_ipcam_baseline(self) -> None:
         try:
@@ -309,14 +327,14 @@ class IpcamSyncMixin:
     def _report_chunk_progress(self, done: int, total: int) -> None:
         try:
             self._pipeline_chunk_progress(done, total)
-        except Exception:  # noqa: BLE001 - progress is cosmetic
-            pass
+        except (OSError, RuntimeError, AttributeError, TypeError):
+            pass  # progress is cosmetic
 
     def _report_download_progress(self, transferred: int, total) -> None:
         try:
             self._pipeline_download_progress(transferred, total)
-        except Exception:  # noqa: BLE001 - speed readout is cosmetic
-            pass
+        except (OSError, RuntimeError, AttributeError, TypeError):
+            pass  # speed readout is cosmetic
 
     def _download_one(self, name, dest, cancel) -> bool:
         """Download one chunk, retrying with backoff (plan §Opt. 6).
@@ -378,6 +396,36 @@ class IpcamSyncMixin:
         except OSError:
             self._logger.warning("could not write order.json for %s", print_id)
 
+    def handle_harvest_ipcam(self, _data=None) -> flask.Response:
+        """API entry for the manual "Fetch from printer" button.
+
+        Refused while a print runs — the FTPS pull would compete with the
+        printer's slow link and lag the touchscreen mid-print.
+        """
+        if self._print_active():
+            return flask.jsonify(ok=False, reason="printing")
+        return flask.jsonify(**self.harvest_now())
+
+    def handle_cancel_harvest(self, _data=None) -> flask.Response:
+        """API entry for the Stop button beside the harvest progress bar.
+
+        Sets the running harvest's cancel event: the download progress
+        callback raises on the next block, so even a long FTPS chunk transfer
+        aborts promptly. Chunks already saved are kept (the group is left
+        ``incomplete`` with a re-harvest hint); the cancelled outcome reaches
+        the UI through the normal terminal ``ipcam_download`` push. For the
+        post-print pipeline the shared cancel event is set, which is safe —
+        the harvest is the pipeline's last stage. ``not_running`` when no
+        harvest is active (e.g. it finished just before the click).
+        """
+        with self._ipcam_lock:
+            cancel = self._ipcam_cancel
+        if cancel is None:
+            return flask.jsonify(ok=False, reason="not_running")
+        cancel.set()
+        self._logger.info("ipcam harvest: cancel requested via API")
+        return flask.jsonify(ok=True)
+
     def harvest_now(self, when=None, gcode=None) -> dict:
         """Manual ``/ipcam`` harvest fallback (the "Fetch from printer" button).
 
@@ -406,7 +454,8 @@ class IpcamSyncMixin:
             with self._ipcam_harvest_lock, self._manual_harvest_ui():
                 try:
                     self._harvest(when, gcode, None, cancel)
-                except Exception:  # noqa: BLE001 - must not crash trigger
+                # must not crash the background trigger thread
+                except (FtpError, OSError, RuntimeError, ValueError):
                     self._logger.exception("manual ipcam harvest failed")
 
         threading.Thread(target=_worker, daemon=True).start()

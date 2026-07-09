@@ -14,11 +14,12 @@ import re
 import socket
 import ssl
 import struct
-import subprocess
+import subprocess  # nosec B404 - fixed argv list, no shell; path from settings
 import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 VENDOR_DIR = os.path.join(os.path.dirname(__file__), "vendor", "webcamd_bambu")
@@ -154,7 +155,11 @@ class WebcamdManager:
             return None
         # fixed http://127.0.0.1 loopback URL, not user-controlled
         url = f"http://127.0.0.1:{int(port)}/?info"
+        parsed = urllib.parse.urlsplit(url)
+        if parsed.scheme != "http" or parsed.hostname != "127.0.0.1":
+            return None
         try:
+            # scheme/host checked above — no file:// or foreign-host access
             opened = urllib.request.urlopen(url, timeout=3)  # nosec B310
             with opened as response:
                 info = json.load(response)
@@ -217,8 +222,9 @@ class WebcamdManager:
         except socket.timeout:
             return False, "timeout"
         except (ConnectionRefusedError, OSError):
+            # OSError also covers ssl.SSLError (a subclass)
             return False, "unreachable"
-        except Exception:
+        except ValueError:
             return False, "error"
 
     def _validate(self, config):
@@ -318,7 +324,9 @@ class WebcamdManager:
                     self._http_logger.info(line)
                 else:
                     self._logger.info("webcamd: %s", line)
-        except Exception:
+        except (OSError, ValueError, RuntimeError):
+            # reading a closed/broken stdout pipe — the log pump must never
+            # crash the watchdog thread
             pass
 
     def _watchdog(self, process, generation):
@@ -410,5 +418,5 @@ class WebcamdManager:
             return
         try:
             self._on_state_change(state, detail)
-        except Exception:
+        except (OSError, RuntimeError, AttributeError, TypeError, ValueError):
             self._logger.exception("state change callback failed")

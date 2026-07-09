@@ -24,8 +24,9 @@ tab and timelapse tab.
 
 ## Mixins used
 
-`BambucamPlugin` combines OctoPrint mixins with two of its own
-(`TimelapseOpsMixin`, `AutoSyncMixin`):
+`BambucamPlugin` combines OctoPrint mixins with four of its own
+(`TimelapseOpsMixin`, `AutoSyncMixin`, `IpcamSyncMixin`, `RawFilesOpsMixin` —
+the latter two are the [Raw Files render pipeline](render-pipeline.md)):
 
 - `StartupPlugin` / `ShutdownPlugin` — start and stop the daemon with OctoPrint.
 - `SettingsPlugin` — defaults, restricted paths, restart-on-change.
