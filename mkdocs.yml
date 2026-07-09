@@ -73,6 +73,7 @@ nav:
       - Data flow: architecture/data-flow.md
       - Settings: architecture/settings.md
       - OctoPrint integration: architecture/octoprint-integration.md
+      - Raw Files render pipeline: architecture/render-pipeline.md
   - API:
       - Python: api/python.md
       - JavaScript: api/javascript.md

@@ -74,7 +74,7 @@ def _is_installed(plugin_manager) -> bool:
         plugins = getattr(plugin_manager, "plugins", {}) or {}
         info = plugins.get(CONNECTOR_PLUGIN_ID)
         return bool(info and getattr(info, "enabled", True))
-    except Exception:  # noqa: BLE001 - discovery must never raise
+    except (AttributeError, TypeError):  # discovery must never raise
         return False
 
 
@@ -87,7 +87,7 @@ def _params_from_settings(settings) -> dict:
     """
     try:
         raw = settings.global_get(["plugins", CONNECTOR_PLUGIN_ID], merged=True)
-    except Exception:  # noqa: BLE001
+    except (KeyError, AttributeError, TypeError, RuntimeError):
         return {}
     return raw if isinstance(raw, dict) else {}
 
@@ -101,7 +101,7 @@ def _params_from_connection_profile(settings) -> dict:
     """
     try:
         preferred = settings.global_get(_CONNECTION_PROFILE_PATH, merged=True)
-    except Exception:  # noqa: BLE001
+    except (KeyError, AttributeError, TypeError, RuntimeError):
         return {}
     if not isinstance(preferred, dict):
         return {}

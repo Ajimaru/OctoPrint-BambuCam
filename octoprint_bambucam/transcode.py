@@ -7,7 +7,6 @@ original is untouched). Reuses OctoPrint's own webcam ffmpeg config.
 
 import os
 import re
-import shlex
 import subprocess  # nosec B404 - fixed argv list, no shell; path from OctoPrint
 import time
 from typing import Callable, Optional
@@ -54,7 +53,9 @@ class TimelapseTranscoder:
         self._ffmpeg = (ffmpeg_path or "").strip() or None
         self._videocodec = videocodec or "libx264"
         self._bitrate = bitrate or "10000k"
-        self._threads = threads or 1
+        # 0 = let ffmpeg use all cores; keep it (a plain ``or 1`` would cap the
+        # intended 0 to a single core). Only a missing/negative value → 1.
+        self._threads = 1 if threads is None or threads < 0 else threads
         self._thumb_cmd = thumbnail_commandline
         self._runner = runner or _run_command  # injection seam for tests
 
@@ -130,22 +131,83 @@ class TimelapseTranscoder:
         self._logger.info("transcoded %s -> %s", avi_path, mp4_path)
 
     def create_thumbnail(self, mp4_path: str, thumb_path: str) -> bool:
-        """Best-effort ``<mp4>.thumb.jpg`` from the last frame.
+        """Best-effort ``<mp4>.thumb.jpg`` from the **last** frame.
 
-        Uses OctoPrint's ``ffmpegThumbnailCommandline`` template if available.
-        Returns True on success; a failure is non-fatal (returns False) — the
-        movie is still playable without a thumbnail.
+        A timelapse's first frame is an empty bed (a blank white tile in the
+        native Timelapse list); the last frame shows the finished print, which
+        makes a far more useful thumbnail. We therefore grab a frame near the
+        end with our own ffmpeg command (``-sseof``), independent of whether
+        OctoPrint has an ``ffmpegThumbnailCommandline`` configured — on recent
+        OctoPrint that template is often unset, so relying on it produced no
+        thumbnail at all. Returns True on success; a failure is non-fatal.
         """
-        if not self.available() or not self._thumb_cmd:
+        if not self.available():
             return False
+        # -sseof -1: seek to 1 s before the end, then take one frame. Falls back
+        # to frame 0 for a clip shorter than the seek offset, still better than
+        # nothing. Overwrite (-y) so a re-render refreshes a stale thumbnail.
+        cmd = [
+            self._ffmpeg,
+            "-sseof",
+            "-1",
+            "-i",
+            mp4_path,
+            "-frames:v",
+            "1",
+            "-q:v",
+            "3",
+            "-y",
+            thumb_path,
+        ]
         try:
-            cmd_str = self._thumb_cmd.format(
-                ffmpeg=self._ffmpeg, input=mp4_path, output=thumb_path
-            )
-            self._exec(_split_commandline(cmd_str))
-            return os.path.exists(thumb_path)
+            rc, _err = self._runner(cmd, TRANSCODE_TIMEOUT, None)
+            if rc == 0 and os.path.exists(thumb_path):
+                return True
+            # Some very short/odd clips fail the end-seek; retry from the start.
+            cmd_start = [
+                self._ffmpeg,
+                "-i",
+                mp4_path,
+                "-frames:v",
+                "1",
+                "-q:v",
+                "3",
+                "-y",
+                thumb_path,
+            ]
+            rc, _err = self._runner(cmd_start, TRANSCODE_TIMEOUT, None)
+            return rc == 0 and os.path.exists(thumb_path)
         except (TranscodeError, OSError, ValueError):
             self._logger.warning("thumbnail generation failed for %s", mp4_path)
+            return False
+
+    def create_gcode_thumbnail(self, src_png: str, thumb_path: str) -> bool:
+        """Write ``thumb_path`` from a gcode preview PNG; return success.
+
+        Scales the slicer plate preview down to a list-friendly size. Best-
+        effort — a failure returns False so the caller can fall back to a
+        video-frame thumbnail.
+        """
+        if not self.available() or not src_png:
+            return False
+        cmd = [
+            self._ffmpeg,
+            "-i",
+            src_png,
+            "-vf",
+            "scale=640:-1",
+            "-frames:v",
+            "1",
+            "-q:v",
+            "3",
+            "-y",
+            thumb_path,
+        ]
+        try:
+            rc, _err = self._runner(cmd, TRANSCODE_TIMEOUT, None)
+            return rc == 0 and os.path.isfile(thumb_path)
+        except (TranscodeError, OSError, ValueError):
+            self._logger.warning("gcode thumbnail failed for %s", src_png)
             return False
 
     def _exec(self, cmd: list[str], *, progress_cb=None) -> None:
@@ -163,12 +225,7 @@ class TimelapseTranscoder:
             pass
 
 
-def _split_commandline(cmd_str: str) -> list[str]:
-    """Split an OctoPrint ffmpeg commandline template into argv (no shell)."""
-    return shlex.split(cmd_str)
-
-
-def _run_command(cmd: list[str], timeout: int, progress_cb=None):
+def _run_command(cmd: list[str], timeout: int, progress_cb=None, cancel=None):
     """Run ffmpeg without a shell, streaming stderr for live progress.
 
     Returns ``(returncode, stderr_tail)``. Parses ffmpeg's ``Duration:`` (once)
@@ -176,14 +233,25 @@ def _run_command(cmd: list[str], timeout: int, progress_cb=None):
     ``progress_cb`` (throttled to whole-percent changes). Keeps only the last
     stderr lines so a failure message can be surfaced without buffering all of
     ffmpeg's noisy output.
+
+    When a ``cancel`` :class:`threading.Event` is supplied it is polled on every
+    stderr line and the process is killed promptly once it is set, so a
+    long-running encode can be aborted mid-flight (the render queue's Cancel
+    button) instead of only being noticed after ffmpeg finishes.
     """
+    if not cmd or not all(isinstance(arg, str) for arg in cmd):
+        raise TranscodeError("ffmpeg_failed", "invalid ffmpeg command")
     try:
-        proc = subprocess.Popen(  # nosec B603 - no shell, argv list
+        # argv list validated all-str above; shell defaults to False so no
+        # shell interpolation is possible. cmd[0] is ffmpeg's path from
+        # OctoPrint's webcam config, the rest are literal template args.
+        proc = subprocess.Popen(  # nosec B603 - no shell, validated argv list
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
             bufsize=1,
             universal_newlines=True,
+            shell=False,
         )
     except OSError as exc:
         raise TranscodeError("ffmpeg_failed", str(exc)) from exc
@@ -192,8 +260,15 @@ def _run_command(cmd: list[str], timeout: int, progress_cb=None):
     duration = 0.0
     last_pct = -1
     tail: list[str] = []
-    assert proc.stderr is not None
+    if proc.stderr is None:  # pragma: no cover - stderr=PIPE always gives one
+        proc.kill()
+        proc.wait()
+        raise TranscodeError("ffmpeg_failed", "no stderr stream from ffmpeg")
     for line in _iter_ffmpeg_lines(proc.stderr):
+        if cancel is not None and cancel.is_set():
+            proc.kill()
+            proc.wait()
+            return proc.returncode, "\n".join(tail)
         tail.append(line)
         del tail[:-20]
         if duration == 0.0:

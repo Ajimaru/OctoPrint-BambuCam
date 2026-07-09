@@ -1,11 +1,13 @@
 # flake8 does not read pyproject.toml. These settings mirror the args used by
 # the flake8 pre-commit hook, plus an extend-exclude that mirrors .gitignore so
 # direct `flake8` runs (CLI / IDE) skip the same build/cache/tool paths.
-# Keep the exclude set in sync with .gitignore.
+# Keep the exclude set in sync with .gitignore and the pre-commit global
+# exclude (vendored upstream code is kept verbatim, never linted).
 [flake8]
 max-line-length = 80
 extend-ignore = E203,W503
 extend-exclude =
+    octoprint_bambucam/vendor,
     .venv*,
     .idea,
     .ruff_cache,

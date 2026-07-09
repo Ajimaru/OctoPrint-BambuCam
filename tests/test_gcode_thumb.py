@@ -50,6 +50,31 @@ class TestSource:
         plugin_data, _ = _make_connector_thumb(tmp_path, "x.gcode.3mf")
         assert gcode_thumb_source(plugin_data, "../../etc/passwd") is None
 
+    def test_dot_basename_returns_none(self, tmp_path):
+        """A name whose basename is '.' or '..' is rejected."""
+        plugin_data, _ = _make_connector_thumb(tmp_path, "x.gcode.3mf")
+        assert gcode_thumb_source(plugin_data, "dir/..") is None
+        assert gcode_thumb_source(plugin_data, ".") is None
+
+    def test_by_stem_empty_returns_none(self, tmp_path):
+        """An empty print-id stem returns None."""
+        plugin_data, _ = _make_connector_thumb(tmp_path, "x.gcode.3mf")
+        assert gcode_thumb_source_by_stem(plugin_data, "") is None
+
+    def test_contained_plate_escape_returns_none(self, tmp_path):
+        """A job dir that resolves outside the thumbs dir is rejected."""
+        from octoprint_bambucam.gcode_thumb import _contained_plate
+
+        plugin_data, _ = _make_connector_thumb(tmp_path, "x.gcode.3mf")
+        thumbs = os.path.join(
+            os.path.dirname(plugin_data), "bambu_connector", "thumbs"
+        )
+        # place a plate outside the thumbs dir and point at it via ..
+        outside = tmp_path / "data" / "evil"
+        outside.mkdir()
+        (outside / "plate_1.png").write_bytes(b"png")
+        assert _contained_plate(thumbs, "../evil") is None
+
     def test_by_stem_matches_sanitized(self, tmp_path):
         """A print-id stem matches a connector folder by normalized name.
 
@@ -115,6 +140,21 @@ class TestWrite:
             "/src.png",
             str(tmp_path / "t.jpg"),
             lambda *a: (1, "boom"),
+            1800,
+        )
+        assert ok is False
+
+    def test_runner_exception_returns_false(self, tmp_path):
+        """A raising runner is swallowed — the thumbnail is cosmetic."""
+
+        def boom(*_a):
+            raise OSError("no exec")
+
+        ok = write_gcode_thumbnail(
+            "/usr/bin/ffmpeg",
+            "/src.png",
+            str(tmp_path / "t.jpg"),
+            boom,
             1800,
         )
         assert ok is False

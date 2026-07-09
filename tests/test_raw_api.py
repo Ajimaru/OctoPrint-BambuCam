@@ -52,6 +52,7 @@ class TestRenderApiRegistration:
             "list_raw_footage",
             "scan_raw",
             "harvest_ipcam",
+            "cancel_harvest",
             "pipeline_status",
             "start_render",
             "cancel_render",
@@ -113,6 +114,10 @@ class TestRenderApiRouting:
         render_plugin._printer.is_printing = MagicMock(return_value=True)
         result = _json(render_plugin, "harvest_ipcam", {}, app)
         assert result["reason"] == "printing"
+
+    def test_cancel_harvest_not_running(self, render_plugin, app):
+        result = _json(render_plugin, "cancel_harvest", {}, app)
+        assert result == {"ok": False, "reason": "not_running"}
 
     def test_delete_group_unknown(self, render_plugin, app):
         result = _json(

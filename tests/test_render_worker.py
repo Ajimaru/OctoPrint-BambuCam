@@ -13,7 +13,11 @@ import threading
 import pytest
 
 from octoprint_bambucam.render_paths import RenderPaths
-from octoprint_bambucam.render_worker import RenderError, RenderWorker
+from octoprint_bambucam.render_worker import (
+    RenderError,
+    RenderOptions,
+    RenderWorker,
+)
 
 
 @pytest.fixture()
@@ -69,12 +73,14 @@ def _make_worker(
     return RenderWorker(
         logger,
         paths,
-        ffmpeg_path="/bin/ffmpeg",
         timelapse_folder=timelapse_dir,
         fire_movie_done=fired or (lambda p: None),
         output_name=lambda pid, preset: f"{pid}__{preset}.mp4",
-        runner=runner or _fake_runner_factory(),
-        threads=threads,
+        options=RenderOptions(
+            ffmpeg_path="/bin/ffmpeg",
+            runner=runner or _fake_runner_factory(),
+            threads=threads,
+        ),
     )
 
 
@@ -185,10 +191,10 @@ class TestRun:
         worker = RenderWorker(
             logger,
             paths,
-            ffmpeg_path="",
             timelapse_folder=timelapse_dir,
             fire_movie_done=lambda p: None,
             output_name=lambda pid, preset: "x.mp4",
+            options=RenderOptions(ffmpeg_path=""),
         )
         with pytest.raises(RenderError) as exc:
             worker.run(

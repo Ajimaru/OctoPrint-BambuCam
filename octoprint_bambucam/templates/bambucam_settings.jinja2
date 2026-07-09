@@ -1,3 +1,12 @@
+{#
+  help(text): a "?" circle with a hover/focus tooltip. The bubble is centered
+  above the mouse pointer (or the icon, on keyboard focus) and clamped to the
+  viewport by _positionHelpTooltip in BambuCam.js. `tabindex` makes it
+  keyboard-focusable so the tooltip is reachable without a mouse.
+#}
+{% macro help(text) -%}
+    <span class="bambucam_help" tabindex="0" role="note">?<span class="bambucam_help_text">{{ text }}</span></span>
+{%- endmacro %}
 <form class="form-horizontal" onsubmit="return false;">
     <h3>{{ _("BambuCam") }}</h3>
     <div class="control-group">
@@ -5,7 +14,7 @@
             <label class="checkbox">
                 <input type="checkbox"
                        data-bind="checked: settings.plugins.bambucam.enabled" />
-                {{ _("Enable BambuCam") }}
+                {{ _("Enable BambuCam") }}{{ help(_("Master switch: starts/stops the plugin's local stream server. When off, live view, snapshots and OctoPrint timelapse captures via this plugin stop.") ) }}
             </label>
         </div>
     </div>
@@ -14,10 +23,13 @@
             <a href="#bambucam_tab_connection" data-toggle="tab">{{ _("Connection") }}</a>
         </li>
         <li>
-            <a href="#bambucam_tab_image" data-toggle="tab">{{ _("Image") }}</a>
+            <a href="#bambucam_tab_image" data-toggle="tab">{{ _("Webcam Image") }}</a>
         </li>
         <li>
-            <a href="#bambucam_tab_timelapse" data-toggle="tab">{{ _("Timelapse") }}</a>
+            <a href="#bambucam_tab_timelapse" data-toggle="tab">{{ _("Printer Timelapse") }}</a>
+        </li>
+        <li>
+            <a href="#bambucam_tab_render" data-toggle="tab">{{ _("Raw Files Render") }}</a>
         </li>
         <li>
             <a href="#bambucam_tab_advanced" data-toggle="tab">{{ _("Advanced") }}</a>
@@ -42,23 +54,25 @@
                 </div>
             </div>
             <div class="control-group">
-                <label class="control-label">{{ _("Printer IP / hostname") }}</label>
+                <label class="control-label">
+                    {{ _("Printer IP / hostname") }}{{ help(_("IP address of your Bambu Lab printer (P1/A1 series, LAN mode). The X1 series is not supported.") ) }}
+                </label>
                 <div class="controls">
                     <input type="text"
                            class="input-block-level"
                            data-bind="value: connectionFieldsAuto() ? connectorHostname : settings.plugins.bambucam.hostname, disable: connectionFieldsAuto"
                            placeholder="192.168.1.100" />
-                    <span class="help-block">{{ _("IP address of your Bambu Lab printer (P1/A1 series, LAN mode). The X1 series is not supported.") }}</span>
                 </div>
             </div>
             <div class="control-group">
-                <label class="control-label">{{ _("Access code") }}</label>
+                <label class="control-label">
+                    {{ _("Access code") }}{{ help(_("LAN access code, shown on the printer display under network settings.") ) }}
+                </label>
                 <div class="controls">
                     <input type="password"
                            class="input-block-level"
                            data-bind="value: connectionFieldsAuto() ? connectorAccessCodeMask : settings.plugins.bambucam.access_code, disable: connectionFieldsAuto"
                            autocomplete="new-password" />
-                    <span class="help-block">{{ _("LAN access code, shown on the printer display under network settings.") }}</span>
                 </div>
             </div>
             <div class="control-group">
@@ -78,18 +92,21 @@
             </div>
             <h4>{{ _("Stream server") }}</h4>
             <div class="control-group">
-                <label class="control-label">{{ _("HTTP port") }}</label>
+                <label class="control-label">
+                    {{ _("HTTP port") }}{{ help(_("Port of the local MJPEG server started by this plugin.") ) }}
+                </label>
                 <div class="controls">
                     <input type="number"
                            min="1024"
                            max="65535"
                            class="input-small"
                            data-bind="value: settings.plugins.bambucam.port" />
-                    <span class="help-block">{{ _("Port of the local MJPEG server started by this plugin.") }}</span>
                 </div>
             </div>
             <div class="control-group">
-                <label class="control-label">{{ _("Bind address") }}</label>
+                <label class="control-label">
+                    {{ _("Bind address") }}{{ help(_("With 127.0.0.1 snapshots and timelapse work, but the browser live view does not (unless a reverse proxy + stream URL override is set).") ) }}
+                </label>
                 <div class="controls">
                     <select data-bind="value: settings.plugins.bambucam.bind_address">
                         <option value="127.0.0.1">
@@ -102,7 +119,6 @@
                         <i class="fas fa-exclamation-triangle"></i>
                         {{ _("The stream server has no authentication. With 0.0.0.0 anyone on your network can watch the camera. Required for the live view in the browser unless you set a stream URL override below.") }}
                     </div>
-                    <span class="help-block">{{ _("With 127.0.0.1 snapshots and timelapse work, but the browser live view does not (unless you use a reverse proxy and a stream URL override).") }}</span>
                     <div style="display: flex; gap: 5px; margin-top: 5px;">
                         <input type="text"
                                style="flex: 1;
@@ -132,13 +148,14 @@
                 </div>
             </div>
             <div class="control-group">
-                <label class="control-label">{{ _("Stream URL override") }}</label>
+                <label class="control-label">
+                    {{ _("Stream URL override") }}{{ help(_("Optional. Use this if the stream is served through a reverse proxy. Leave empty to use the port above directly.") ) }}
+                </label>
                 <div class="controls">
                     <input type="text"
                            class="input-block-level"
                            data-bind="value: settings.plugins.bambucam.stream_url_override"
                            placeholder="https://my.proxy/webcam/?stream" />
-                    <span class="help-block">{{ _("Optional. Use this if the stream is served through a reverse proxy. Leave empty to use the port above directly.") }}</span>
                 </div>
             </div>
             <h4>{{ _("Status") }}</h4>
@@ -170,52 +187,55 @@
                     <label class="checkbox">
                         <input type="checkbox"
                                data-bind="checked: settings.plugins.bambucam.override_resolution" />
-                        {{ _("Override resolution") }}
+                        {{ _("Override resolution") }}{{ help(_("Off by default: the printer dictates the frame size. Only enable to force a width/height — a value that doesn't match the printer's stream can corrupt the image.") ) }}
                     </label>
-                    <span class="help-block">{{ _("Off by default: the printer dictates the frame size. Only enable this if you specifically need to force a width/height — a value that does not match the printer's stream can corrupt the image.") }}</span>
                 </div>
             </div>
             <div class="control-group">
-                <label class="control-label">{{ _("Width") }}</label>
+                <label class="control-label">
+                    {{ _("Width") }}{{ help(_("Only used when 'Override resolution' is enabled.") ) }}
+                </label>
                 <div class="controls">
                     <input type="number"
                            min="1"
                            class="input-small"
                            data-bind="value: settings.plugins.bambucam.width, enable: settings.plugins.bambucam.override_resolution" />
-                    <span class="help-block">{{ _("Only used when 'Override resolution' is enabled.") }}</span>
                 </div>
             </div>
             <div class="control-group">
-                <label class="control-label">{{ _("Height") }}</label>
+                <label class="control-label">
+                    {{ _("Height") }}{{ help(_("Only used when 'Override resolution' is enabled.") ) }}
+                </label>
                 <div class="controls">
                     <input type="number"
                            min="1"
                            class="input-small"
                            data-bind="value: settings.plugins.bambucam.height, enable: settings.plugins.bambucam.override_resolution" />
-                    <span class="help-block">{{ _("Only used when 'Override resolution' is enabled.") }}</span>
                 </div>
             </div>
             <h4>{{ _("Image") }}</h4>
             <div class="control-group">
-                <label class="control-label">{{ _("Rotation (degrees)") }}</label>
+                <label class="control-label">
+                    {{ _("Rotation (degrees)") }}{{ help(_("1-359 degrees, -1 disables rotation.") ) }}
+                </label>
                 <div class="controls">
                     <input type="number"
                            min="-1"
                            max="359"
                            class="input-small"
                            data-bind="value: settings.plugins.bambucam.rotate" />
-                    <span class="help-block">{{ _("1-359 degrees, -1 disables rotation.") }}</span>
                 </div>
             </div>
             <div class="control-group">
-                <label class="control-label">{{ _("Capture pause (seconds)") }}</label>
+                <label class="control-label">
+                    {{ _("Capture pause (seconds)") }}{{ help(_("Pause between captured frames (--encodewait). Default 0.5.") ) }}
+                </label>
                 <div class="controls">
                     <input type="number"
                            min="0"
                            step="0.1"
                            class="input-small"
                            data-bind="value: settings.plugins.bambucam.encodewait" />
-                    <span class="help-block">{{ _("Pause between captured frames (--encodewait). Default 0.5.") }}</span>
                 </div>
             </div>
             <div class="control-group">
@@ -223,12 +243,12 @@
                     <label class="checkbox">
                         <input type="checkbox"
                                data-bind="checked: settings.plugins.bambucam.flashred" />
-                        {{ _("Show activity dot (red dot every other frame)") }}
+                        {{ _("Show activity dot (red dot every other frame)") }}{{ help(_("Draws a small red dot on every other frame so you can tell at a glance that the stream is live and not a frozen image.") ) }}
                     </label>
                     <label class="checkbox">
                         <input type="checkbox"
                                data-bind="checked: settings.plugins.bambucam.showfps" />
-                        {{ _("Show FPS watermark (costs CPU)") }}
+                        {{ _("Show FPS watermark (costs CPU)") }}{{ help(_("Overlays the current frame rate on the video. The text is redrawn on every frame, which costs extra CPU on small boards like a Pi.") ) }}
                     </label>
                 </div>
             </div>
@@ -237,12 +257,22 @@
         <div class="tab-pane" id="bambucam_tab_timelapse">
             <h4>{{ _("Timelapse downloads") }}</h4>
             <div class="control-group">
-                <label class="control-label">{{ _("Filename suffix") }}</label>
+                <div class="controls">
+                    <label class="checkbox">
+                        <input type="checkbox"
+                               data-bind="checked: settings.plugins.bambucam.prefix_job_name" />
+                        {{ _("Prefix filenames with the print job name") }}{{ help(_("Prepends the print job's file name to each downloaded timelapse, so videos are easy to match to their print. Only for videos whose print end this plugin recorded.") ) }}
+                    </label>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">
+                    {{ _("Filename suffix") }}{{ help(_("Optional. Appended before the extension (e.g. _bambu) so downloads are easy to tell apart from OctoPrint's own renders.") ) }}
+                </label>
                 <div class="controls">
                     <input type="text"
                            class="input-medium"
                            data-bind="value: settings.plugins.bambucam.download_suffix" />
-                    <span class="help-block">{{ _("Optional. Appended to each downloaded timelapse filename before the extension (e.g. _bambu) so they're easy to tell apart from OctoPrint's own renders.") }}</span>
                 </div>
             </div>
             <div class="control-group">
@@ -250,9 +280,8 @@
                     <label class="checkbox">
                         <input type="checkbox"
                                data-bind="checked: settings.plugins.bambucam.transcode_to_mp4" />
-                        {{ _("Convert downloaded .avi to .mp4") }}
+                        {{ _("Convert downloaded .avi to .mp4") }}{{ help(_("Re-encodes each copied .avi to .mp4 (removing the .avi) using OctoPrint's ffmpeg. Skipped while printing.") ) }}
                     </label>
-                    <span class="help-block">{{ _("Re-encodes each copied .avi to .mp4 (removing the .avi) using OctoPrint's ffmpeg. Skipped while printing.") }}</span>
                     <div class="bambucam_ffmpeg_status">
                         <span class="text-success" data-bind="visible: ffmpegState() === 'ok'">
                             <i class="fas fa-check-circle"></i>
@@ -267,6 +296,11 @@
                             <i class="fas fa-spinner fa-spin"></i> {{ _("Checking ffmpeg…") }}
                         </span>
                     </div>
+                    <label class="checkbox">
+                        <input type="checkbox"
+                               data-bind="checked: settings.plugins.bambucam.sd_thumb_from_gcode" />
+                        {{ _("Use the print job's gcode preview as the thumbnail") }}{{ help(_("Off by default. Uses the print job's slicer plate preview (from Bambu Connector) as the video's thumbnail instead of a frame from the timelapse. Falls back to a video frame when no preview is found.") ) }}
+                    </label>
                 </div>
             </div>
             <div class="control-group">
@@ -274,14 +308,18 @@
                     <label class="checkbox">
                         <input type="checkbox"
                                data-bind="checked: settings.plugins.bambucam.auto_sync" />
-                        {{ _("Automatically pull new timelapses after a print") }}
+                        {{ _("Automatically pull new timelapses after a print") }}{{ help(_("After a print finishes, copy/move the printer's new timelapse automatically — only once the printer is idle and OctoPrint finished its own render.") ) }}
                     </label>
-                    <span class="help-block">{{ _("After a print finishes, copy/move the printer's new timelapse automatically — but only once the printer is idle and OctoPrint has finished rendering its own timelapse.") }}</span>
+                    <div class="bambucam_copy_note">
+                        <i class="fas fa-exclamation-triangle"></i>{{ _("Copying from the printer's SD card is slow and shares the processor that drives the touchscreen, so the display can feel sluggish while a copy runs — it waits for the printer to be idle first, but a copy right after a print can still make the touchscreen lag until it finishes.") }}
+                    </div>
                 </div>
             </div>
             <div class="control-group"
                  data-bind="visible: settings.plugins.bambucam.auto_sync">
-                <label class="control-label">{{ _("Auto-pull action") }}</label>
+                <label class="control-label">
+                    {{ _("Auto-pull action") }}{{ help(_("Copy leaves the video on the printer's SD card; Move deletes it there after a successful download so the card doesn't fill up.") ) }}
+                </label>
                 <div class="controls">
                     <select data-bind="value: settings.plugins.bambucam.auto_sync_action">
                         <option value="copy">{{ _("Copy (keep on SD card)") }}</option>
@@ -291,7 +329,9 @@
             </div>
             <div class="control-group"
                  data-bind="visible: settings.plugins.bambucam.auto_sync">
-                <label class="control-label">{{ _("Delay after print") }}</label>
+                <label class="control-label">
+                    {{ _("Delay after print") }}{{ help(_("How long to wait after a print before checking the SD card (the printer writes its timelapse with a delay).") ) }}
+                </label>
                 <div class="controls">
                     <div class="input-append">
                         <input type="number"
@@ -301,7 +341,119 @@
                                data-bind="value: settings.plugins.bambucam.auto_sync_delay" />
                         <span class="add-on">{{ _("seconds") }}</span>
                     </div>
-                    <span class="help-block">{{ _("How long to wait after a print before checking the SD card (the printer writes its timelapse with a delay).") }}</span>
+                </div>
+            </div>
+        </div>
+        <!-- ── Tab: Render (Raw Files render pipeline) ───────────────────── -->
+        <div class="tab-pane" id="bambucam_tab_render">
+            <h4>{{ _("General") }}</h4>
+            <div class="control-group">
+                <div class="controls">
+                    <label class="checkbox">
+                        <input type="checkbox"
+                               data-bind="checked: settings.plugins.bambucam.render_enabled" />
+                        {{ _("Enable the raw-footage render pipeline") }}{{ help(_("Master switch for turning raw /ipcam footage into videos: harvesting, the render queue, startup recovery and retention cleanup. Already downloaded chunks are kept when off.") ) }}
+                    </label>
+                    <label class="checkbox">
+                        <input type="checkbox"
+                               data-bind="checked: settings.plugins.bambucam.render_tab_visible" />
+                        {{ _("Show the \"Raw Files\" subtab") }}{{ help(_("Cosmetic only: hides the Raw Files subtab from the BambuCam tab. The render pipeline keeps working in the background.") ) }}
+                    </label>
+                    <label class="checkbox">
+                        <input type="checkbox"
+                               data-bind="checked: settings.plugins.bambucam.auto_download_ipcam" />
+                        {{ _("Auto-download /ipcam chunks when a print finishes") }}{{ help(_("Harvests this print's raw /ipcam footage into the Raw Files tab when the print ends, ready to concat and render. Live webcam stream is paused during the harvest.") ) }}
+                    </label>
+                    <div class="bambucam_copy_note">
+                        <i class="fas fa-exclamation-triangle"></i>{{ _("Harvesting raw /ipcam footage is slow, touchscreen display can feel sluggish while a harvest runs.") }}
+                    </div>
+                    <label class="checkbox">
+                        <input type="checkbox"
+                               data-bind="checked: settings.plugins.bambucam.auto_render_new_groups" />
+                        {{ _("Auto-render freshly downloaded groups (default preset, idle only)") }}{{ help(_("When a harvest downloads a group completely, queue a render with the default preset — same job as the Concat + Render button. Queue's idle gate still applies.") ) }}
+                    </label>
+                    <label class="checkbox">
+                        <input type="checkbox"
+                               data-bind="checked: settings.plugins.bambucam.raw_thumb_from_gcode" />
+                        {{ _("Use the print job's gcode preview as the thumbnail") }}{{ help(_("Off by default. Uses the print job's slicer plate preview (from Bambu Connector) as the rendered clip's thumbnail instead of a frame from the video. Falls back to a video frame when no preview is found.") ) }}
+                    </label>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">
+                    {{ _("Default preset") }}{{ help(_("Encode profile preselected for a render. Fast 720p: 1280 px, 5×, smallest/quickest (Pi default). Medium 1080p: 1920 px, 2×, balanced. Quality 1080p: 1920 px, real-time, best but slow. Original: full res, archival, slowest.") ) }}
+                </label>
+                <div class="controls">
+                    <select data-bind="value: settings.plugins.bambucam.default_preset">
+                        <option value="fast_720p">{{ _("Fast 720p") }}</option>
+                        <option value="medium_1080p">{{ _("Medium 1080p") }}</option>
+                        <option value="quality_1080p">{{ _("Quality 1080p") }}</option>
+                        <option value="original">{{ _("Original (archive, slow)") }}</option>
+                    </select>
+                </div>
+            </div>
+            <h4>{{ _("Performance") }}</h4>
+            <div class="control-group">
+                <div class="controls">
+                    <label class="checkbox">
+                        <input type="checkbox"
+                               data-bind="checked: settings.plugins.bambucam.render_only_when_idle" />
+                        {{ _("Render only when the printer is idle") }}{{ help(_("Queued renders wait until no print is running, so ffmpeg never competes with an active print for CPU. Turn off to render immediately.") ) }}
+                    </label>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">
+                    {{ _("Max queue size") }}{{ help(_("Maximum number of renders waiting in the queue; further requests are rejected until one finishes. Default 10.") ) }}
+                </label>
+                <div class="controls">
+                    <input type="number"
+                           class="input-mini"
+                           min="1"
+                           data-bind="value: settings.plugins.bambucam.max_queue_size" />
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">
+                    {{ _("Render timeout (s)") }}{{ help(_("A render that runs longer than this is aborted and marked failed. 0 = default (1800 s / 30 min). Raise for the Original preset on slow hardware.") ) }}
+                </label>
+                <div class="controls">
+                    <input type="number"
+                           class="input-small"
+                           min="0"
+                           data-bind="value: settings.plugins.bambucam.render_timeout" />
+                </div>
+            </div>
+            <h4>{{ _("Cleanup &amp; Safety") }}</h4>
+            <div class="control-group">
+                <div class="controls">
+                    <label class="checkbox">
+                        <input type="checkbox"
+                               data-bind="checked: settings.plugins.bambucam.move_to_trash" />
+                        {{ _("Move deleted files to trash first (soft-delete)") }}{{ help(_("Deleting a raw-footage group moves it to a trash folder instead of removing it right away; trash is purged by the retention sweep. Off = delete immediately.") ) }}
+                    </label>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">
+                    {{ _("Chunk retention (days)") }}{{ help(_("Rendered groups are cleaned this many days after their render (0 = keep forever); trash entries older than this are purged. Groups that were never rendered are exempt.") ) }}
+                </label>
+                <div class="controls">
+                    <input type="number"
+                           class="input-mini"
+                           min="0"
+                           data-bind="value: settings.plugins.bambucam.chunks_retention_days" />
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">
+                    {{ _("Stale lock timeout (s)") }}{{ help(_("If a render crashes it leaves a lockfile behind; locks older than this are reclaimed at startup and the job is marked failed. Default 86400 (1 day).") ) }}
+                </label>
+                <div class="controls">
+                    <input type="number"
+                           class="input-small"
+                           min="60"
+                           data-bind="value: settings.plugins.bambucam.stale_lock_timeout" />
                 </div>
             </div>
         </div>
@@ -313,33 +465,80 @@
                     <label class="checkbox">
                         <input type="checkbox"
                                data-bind="checked: settings.plugins.bambucam.autorestart" />
-                        {{ _("Automatically restart the stream server after crashes") }}
+                        {{ _("Automatically restart the stream server after crashes") }}{{ help(_("Restarts the stream server when it exits unexpectedly, up to 'Max restarts' within the restart window below.") ) }}
                     </label>
                     <label class="checkbox">
                         <input type="checkbox"
                                data-bind="checked: settings.plugins.bambucam.loghttp" />
-                        {{ _("Log HTTP requests of the stream server (debug)") }}
+                        {{ _("Log HTTP requests of the stream server (debug)") }}{{ help(_("Writes every HTTP request to the stream server into its own rotating log file (plugin_bambucam_http.log). Only needed for debugging.") ) }}
                     </label>
                 </div>
             </div>
             <div class="control-group">
-                <label class="control-label">{{ _("Max restarts") }}</label>
+                <label class="control-label">
+                    {{ _("Max restarts") }}{{ help(_("Give up auto-restarting after this many crashes within the restart window. Only used when auto-restart is enabled.") ) }}
+                </label>
                 <div class="controls">
                     <input type="number"
                            min="0"
                            class="input-small"
                            data-bind="value: settings.plugins.bambucam.max_restarts, enable: settings.plugins.bambucam.autorestart" />
-                    <span class="help-block">{{ _("Give up auto-restarting after this many crashes within the restart window. Only used when auto-restart is enabled.") }}</span>
                 </div>
             </div>
             <div class="control-group">
-                <label class="control-label">{{ _("Restart window (seconds)") }}</label>
+                <label class="control-label">
+                    {{ _("Restart window (seconds)") }}{{ help(_("Time window over which the crash count is measured. Only used when auto-restart is enabled.") ) }}
+                </label>
                 <div class="controls">
                     <input type="number"
                            min="1"
                            class="input-small"
                            data-bind="value: settings.plugins.bambucam.restart_window, enable: settings.plugins.bambucam.autorestart" />
-                    <span class="help-block">{{ _("Time window over which the crash count is measured. Only used when auto-restart is enabled.") }}</span>
+                </div>
+            </div>
+            <h4>{{ _("FFmpeg / FFprobe") }}</h4>
+            <p class="text-muted">
+                <small>{{ _("Leave empty to use OctoPrint's webcam ffmpeg and the ffprobe next to it. Used for the Raw Files render pipeline.") }}</small>
+            </p>
+            <div class="control-group">
+                <label class="control-label">
+                    {{ _("ffmpeg path") }}{{ help(_("Full path to the ffmpeg binary used by the Raw Files render pipeline. Empty = OctoPrint's webcam ffmpeg. 'Test' runs it with -version.") ) }}
+                </label>
+                <div class="controls">
+                    <input type="text"
+                           class="input-xxlarge"
+                           data-bind="value: settings.plugins.bambucam.ffmpeg_path"
+                           placeholder="/usr/bin/ffmpeg" />
+                    <button class="btn btn-mini" data-bind="click: testFfmpeg">
+                        {{ _("Test FFmpeg") }}
+                    </button>
+                    <span data-bind="text: renderFfmpegState"></span>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">
+                    {{ _("ffprobe path") }}{{ help(_("Full path to ffprobe, used to read chunk durations and resolutions. Empty = the ffprobe next to the ffmpeg above. 'Test' runs it with -version.") ) }}
+                </label>
+                <div class="controls">
+                    <input type="text"
+                           class="input-xxlarge"
+                           data-bind="value: settings.plugins.bambucam.ffprobe_path"
+                           placeholder="/usr/bin/ffprobe" />
+                    <button class="btn btn-mini" data-bind="click: testFfprobe">
+                        {{ _("Test FFprobe") }}
+                    </button>
+                    <span data-bind="text: ffprobeState"></span>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">
+                    {{ _("ffmpeg threads") }}{{ help(_("CPU threads ffmpeg uses to encode. 1 (default) keeps a Pi responsive; raise for faster renders; 0 = all cores. Applies to both the Raw Files render and the printer-timelapse .avi→.mp4 conversion.") ) }}
+                </label>
+                <div class="controls">
+                    <input type="number"
+                           class="input-mini"
+                           min="0"
+                           data-bind="value: settings.plugins.bambucam.ffmpeg_threads" />
                 </div>
             </div>
             <h4>{{ _("Diagnostics") }}</h4>
@@ -350,9 +549,9 @@
                             data-bind="click: fetchInfo, enable: !fetchingInfo()">
                         <i class="fas fa-info-circle"></i> {{ _("Query stream server (/?info)") }}
                     </button>
+                    {{ help(_("Fetches live stats from the local stream server (the access code is never returned). The server must be running.") ) }}
                     <span data-bind="visible: fetchingInfo()"><i class="fas fa-spinner fa-spin"></i></span>
                     <span class="text-error" data-bind="visible: infoError(), text: infoError"></span>
-                    <span class="help-block">{{ _("Fetches live stats from the local stream server (the access code is never returned). The server must be running.") }}</span>
                     <pre style="margin-top: 5px;
                                 max-height: 250px;
                                 overflow: auto"

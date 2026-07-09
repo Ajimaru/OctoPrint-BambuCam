@@ -174,6 +174,8 @@ def plugin():
     p._led_monitor = None
     p._led_state = None
     p._init_autosync()
+    p._init_ipcam_sync()
+    p._init_raw_files()
 
     settings = MagicMock()
     settings.get_boolean = MagicMock(return_value=True)

@@ -32,22 +32,34 @@ monitor; `null` means unknown.
 
 Body is `{"command": "...", ...}`. Permission required per command:
 
-| Command             | Permission   |
-| ------------------- | ------------ |
-| `detect_connector`  | **SETTINGS** |
-| `ffmpeg_status`     | **SETTINGS** |
-| `fetch_info`        | **SETTINGS** |
-| `list_timelapses`   | **SETTINGS** |
-| `list_local_avi`    | **SETTINGS** |
-| `led_monitor_start` | **SETTINGS** |
-| `led_monitor_stop`  | **SETTINGS** |
-| `set_led`           | **CONTROL**  |
-| `restart`           | **ADMIN**    |
-| `test_connection`   | **ADMIN**    |
-| `copy_timelapses`   | **ADMIN**    |
-| `move_timelapses`   | **ADMIN**    |
-| `delete_timelapses` | **ADMIN**    |
-| `convert_local_avi` | **ADMIN**    |
+| Command                | Permission   |
+| ---------------------- | ------------ |
+| `detect_connector`     | **SETTINGS** |
+| `ffmpeg_status`        | **SETTINGS** |
+| `fetch_info`           | **SETTINGS** |
+| `list_timelapses`      | **SETTINGS** |
+| `list_local_avi`       | **SETTINGS** |
+| `led_monitor_start`    | **SETTINGS** |
+| `led_monitor_stop`     | **SETTINGS** |
+| `list_raw_footage`     | **SETTINGS** |
+| `scan_raw`             | **SETTINGS** |
+| `render_status`        | **SETTINGS** |
+| `ffprobe_status`       | **SETTINGS** |
+| `render_ffmpeg_status` | **SETTINGS** |
+| `pipeline_status`      | **SETTINGS** |
+| `set_led`              | **CONTROL**  |
+| `restart`              | **ADMIN**    |
+| `test_connection`      | **ADMIN**    |
+| `copy_timelapses`      | **ADMIN**    |
+| `move_timelapses`      | **ADMIN**    |
+| `delete_timelapses`    | **ADMIN**    |
+| `convert_local_avi`    | **ADMIN**    |
+| `harvest_ipcam`        | **ADMIN**    |
+| `cancel_harvest`       | **ADMIN**    |
+| `start_render`         | **ADMIN**    |
+| `cancel_render`        | **ADMIN**    |
+| `delete_group`         | **ADMIN**    |
+| `delete_chunks`        | **ADMIN**    |
 
 ### `restart`
 
@@ -216,6 +228,154 @@ over the `convert_op` push channel.
 Response: `{ "ok": true }`, or `{ "ok": false, "reason": "..." }`
 (`printing`, `no_ffmpeg`, `bad_name`, `busy`).
 
+### `list_raw_footage` / `scan_raw`
+
+Require **SETTINGS**. Both return the Raw Files library plus the render
+queue; `list_raw_footage` serves the cached registry, `scan_raw` rescans
+`raw/chunks/` (including ffprobe) and regenerates missing preview thumbnails.
+
+```json
+{ "command": "list_raw_footage" }
+```
+
+Response:
+
+```json
+{
+  "ok": true,
+  "groups": [
+    {
+      "print_id": "2026-07-04_1429__benchy",
+      "state": "chunks_ready",
+      "chunks": [
+        {
+          "file": "ipcam-record.20260704.0.avi",
+          "slot": 0,
+          "included": true,
+          "present": true,
+          "size": 135000000
+        }
+      ],
+      "size": 135000000,
+      "duration": 210.4,
+      "width": 1680,
+      "height": 1080,
+      "fps": 30.0,
+      "has_thumb": true
+    }
+  ],
+  "jobs": []
+}
+```
+
+`state` is `incomplete`, `chunks_ready` or `rendered` (see the
+[render pipeline](../architecture/render-pipeline.md)).
+
+### `render_status` / `ffprobe_status` / `render_ffmpeg_status` / `pipeline_status`
+
+Require **SETTINGS**. Polling fallbacks for the Raw Files tab:
+
+- `render_status` → `{ "ok": true, "jobs": [...] }` (active render jobs).
+- `ffprobe_status` → `{ "ok": true, "ffprobe": { ... } }` (availability).
+- `render_ffmpeg_status` → `{ "ok": true, "ffmpeg": { "path": "...",
+"configured": true, "executable": true } }` — the binary render jobs run
+  (the Render-tab `ffmpeg_path` override with OctoPrint's `webcam.ffmpeg`
+  fallback).
+- `pipeline_status` → `{ "ok": true, "pipeline": { "busy": false,
+"stage": "", "chunk_done": 0, "chunk_total": 0, "downloaded": 0,
+"download_total": null, "bytes_per_sec": 0 } }` — the post-print pipeline /
+  harvest state. `stage` is `"harvest"` while chunks are pulled (empty for
+  the SD-copy stage); `bytes_per_sec` is the live speed of the chunk
+  currently transferring.
+
+### `harvest_ipcam`
+
+Requires **ADMIN**. Manual "Fetch from printer": diffs `/ipcam` and downloads
+the newest chunks on a background worker. Refused with `printing` while a
+print runs.
+
+```json
+{ "command": "harvest_ipcam" }
+```
+
+Response: `{ "ok": true }` immediately; progress and outcome arrive over the
+`pipeline` and `ipcam_download` push channels.
+
+### `cancel_harvest`
+
+Requires **ADMIN**. Aborts the `/ipcam` harvest that is currently running
+(post-print pipeline stage 3 or a manual `harvest_ipcam`) — the Stop button
+beside the Raw Files harvest bar. Chunks already downloaded are kept; the
+group is left `incomplete` and the terminal `ipcam_download` push reports
+`reason: "cancelled"` with `got`/`want` counts.
+
+```json
+{ "command": "cancel_harvest" }
+```
+
+Response: `{ "ok": true }`, or `{ "ok": false, "reason": "not_running" }`
+when no harvest is active.
+
+### `start_render`
+
+Requires **ADMIN**. Queues a Concat+Render job for one group.
+
+```json
+{
+  "command": "start_render",
+  "print_id": "2026-07-04_1429__benchy",
+  "preset": "fast_720p",
+  "chunks": ["ipcam-record.20260704.0.avi"]
+}
+```
+
+`chunks` is optional (defaults to every included present chunk). Response:
+`{ "ok": true, "jobid": "..." }`, or `{ "ok": false, "reason": "..." }`
+(`printing`, `bad_id`, `unknown_group`, `no_chunks`, `already_queued`,
+`queue_full`).
+
+### `cancel_render`
+
+Requires **ADMIN**. Cancels a queued or running render job.
+
+```json
+{ "command": "cancel_render", "jobid": "..." }
+```
+
+Response: `{ "ok": true }`, or `{ "ok": false, "reason": "..." }`
+(`bad_jobid`, `unknown_job`).
+
+### `delete_group` / `delete_chunks`
+
+Require **ADMIN**. Permanently delete a whole group's footage, or selected
+chunks (each chunk pulls in its slot-pair siblings; `order.json` is rewritten
+and an emptied group is forgotten). Both are refused while a print runs or
+while the group is rendering.
+
+```json
+{ "command": "delete_group", "print_id": "2026-07-04_1429__benchy" }
+```
+
+```json
+{
+  "command": "delete_chunks",
+  "print_id": "2026-07-04_1429__benchy",
+  "chunks": ["ipcam-record.20260704.0.avi"]
+}
+```
+
+Response: `{ "ok": true }` (`delete_chunks` adds `removed: [...]`), or
+`{ "ok": false, "reason": "..." }` (`printing`, `bad_id`, `rendering`,
+`unknown_group`, `no_chunks`).
+
+## `GET` extras
+
+`GET /api/plugin/bambucam?thumb=<video-name>` proxies a video's SD-card
+preview JPEG; `GET /api/plugin/bambucam?raw_thumb=<print-id>` serves a raw
+group's preview JPEG (the last frame of its last chunk). Both require
+**SETTINGS** and return `404` when no thumbnail exists or the name/id is
+invalid.
+
 ## Push messages
 
 The plugin pushes `daemon_state` events over OctoPrint's data updater:
@@ -246,3 +406,21 @@ live without polling:
   monitor whenever it changes: `{ "type": "led_state", "on": true }`. (When
   BambuConnector drives the light, the UI reads the state from the GET status
   instead.)
+
+The Raw Files render pipeline pushes three more channels:
+
+- **`pipeline`** — the post-print pipeline / harvest state, same shape as the
+  `pipeline_status` response: `{ "type": "pipeline", "busy": true,
+"stage": "harvest", "chunk_done": 1, "chunk_total": 4,
+"downloaded": 52428800, "download_total": 135000000,
+"bytes_per_sec": 186000 }`. The byte counters are throttled to ~1 push/s;
+  `bytes_per_sec` is computed server-side from consecutive progress samples
+  and shown beside the harvest bar.
+- **`render_job`** — render-job progress: `{ "type": "render_job",
+"jobid": "...", "print_id": "...", "state": "render", "percent": 42 }`.
+  `state` walks `queued` → `concat` → `render` → `done` / `failed` /
+  `cancelled` (failures carry a `reason`).
+- **`ipcam_download`** — harvest outcome per group: `{ "type":
+"ipcam_download", "print_id": "...", "state": "started", "count": 4 }`.
+  `state` is `started`, `done` (with `count`) or `failed` (with `reason`:
+  `no_space`, `cancelled`, `incomplete`, and `got`/`want` chunk counters).

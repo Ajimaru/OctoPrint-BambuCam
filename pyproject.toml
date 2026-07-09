@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "BambuCam"
-version = "0.2.1rc1+055c8e4"
+version = "0.2.2rc1+ea8ceb1"
 description = "Bambu Lab camera stream integration for OctoPrint"
 authors = [
     {name = "Ajimaru", email = "ajimaru_gdr@pm.me"}
@@ -64,6 +64,10 @@ addopts = "--cov=octoprint_bambucam --cov-report=term-missing --cov-fail-under=9
 # the list is mirrored into each tool's native syntax here, in ``.flake8``,
 # ``.prettierignore``, ``.snyk``, ``.codacy.yml`` and ``eslint.config.mjs``.
 # When you change ``.gitignore``, update those in lockstep.
+#
+# ``octoprint_bambucam/vendor`` is also excluded everywhere: it is upstream
+# third-party code (see vendor/webcamd_bambu/UPSTREAM.md) kept diffable
+# against its source, so it is never reformatted or lint-fixed locally.
 # ---------------------------------------------------------------------------
 
 [tool.pylint.master]
@@ -95,6 +99,7 @@ ignore-paths = [
     "^node_modules/.*$",
     "^\\.development/.*$",
     "^\\.codacy/.*$",
+    "^octoprint_bambucam/vendor/.*$",
 ]
 
 [tool.pylint.messages_control]
@@ -129,6 +134,7 @@ extend-exclude = '''
   | site
   | node_modules
   | BambuCam\.egg-info
+  | octoprint_bambucam/vendor
 )/
 '''
 
@@ -153,6 +159,7 @@ extend-exclude = [
     "site",
     "node_modules",
     "*.egg-info",
+    "octoprint_bambucam/vendor",
 ]
 
 [tool.isort]
@@ -174,6 +181,7 @@ extend_skip_glob = [
     "site/*",
     "node_modules/*",
     "*.egg-info/*",
+    "octoprint_bambucam/vendor/*",
 ]
 
 [tool.djlint]

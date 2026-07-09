@@ -195,12 +195,30 @@ class TestGetSettingsDefaults:
             "max_restarts",
             "restart_window",
             "download_suffix",
+            "prefix_job_name",
             "transcode_to_mp4",
+            "sd_thumb_from_gcode",
             "auto_sync",
             "auto_sync_delay",
             "auto_sync_action",
             "auto_sync_measure",
             "print_dates",
+            "print_jobs",
+            "render_enabled",
+            "render_tab_visible",
+            "auto_download_ipcam",
+            "auto_render_new_groups",
+            "render_only_when_idle",
+            "default_preset",
+            "ffmpeg_path",
+            "ffprobe_path",
+            "ffmpeg_threads",
+            "render_timeout",
+            "max_queue_size",
+            "stale_lock_timeout",
+            "chunks_retention_days",
+            "move_to_trash",
+            "raw_thumb_from_gcode",
         }
         assert set(defaults.keys()) == expected
 
@@ -320,10 +338,10 @@ class TestIsTemplateAutoescaped:
 class TestGetTemplateConfigs:
     """get_template_configs() advertises OctoPrint template extensions."""
 
-    def test_three_templates(self, plugin):
-        """The settings, webcam and timelapse-tab entries are registered."""
+    def test_four_templates(self, plugin):
+        """Settings, webcam, timelapse-tab and raw-tab are registered."""
         configs = plugin.get_template_configs()
-        assert len(configs) == 3
+        assert len(configs) == 4
 
     def test_settings_template(self, plugin):
         """'settings', 'webcam' and 'tab' template types are advertised."""
@@ -341,6 +359,36 @@ class TestTimelapseExtensionsHook:
         exts = plugin.get_timelapse_extensions()
         assert isinstance(exts, list)
         assert "avi" in exts
+
+
+class TestBackupExcludesHook:
+    """get_additional_backup_excludes() keeps bulky render dirs out."""
+
+    @pytest.mark.parametrize("excludes", [[], None])
+    def test_default_excludes_bulky_dirs(self, plugin, excludes):
+        """Chunks/work/trash excluded; thumbs/metadata stay in backup."""
+        paths = plugin.get_additional_backup_excludes(excludes)
+        assert sorted(paths) == [
+            "render/raw/chunks",
+            "render/trash",
+            "render/work",
+        ]
+
+    def test_timelapse_excluded_drops_whole_render_tree(self, plugin):
+        """Without the rendered videos, thumbs/metadata are useless too."""
+        paths = plugin.get_additional_backup_excludes(["timelapse"])
+        assert paths == ["render"]
+
+    def test_hook_registered(self):
+        """__plugin_hooks__ wires the backup exclude callback."""
+        import octoprint_bambucam as mod
+
+        hook = mod.__plugin_hooks__[
+            "octoprint.plugin.backup.additional_excludes"
+        ]
+        assert hook == (
+            mod.__plugin_implementation__.get_additional_backup_excludes
+        )
 
 
 # ---------------------------------------------------------------------------

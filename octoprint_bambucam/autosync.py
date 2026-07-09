@@ -10,13 +10,15 @@ machinery from ``TimelapseOpsMixin`` (``_run_batch``, ``_already_copied``,
 ``_print_active``, ``_make_ftp``) plus the plugin's settings/logger/messages.
 """
 
+import contextlib
 import datetime
 import logging
 import os
 import threading
 import time
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
+import flask
 from octoprint.events import Events
 
 from .ftp import FtpError
@@ -27,6 +29,10 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 
 _GATE_POLL_SECONDS = 5
 _GATE_MAX_WAIT_SECONDS = 1800  # 30 min
+
+# Minimum seconds between download-speed push messages, so a fast transfer
+# does not flood the socket with per-chunk-callback updates.
+_PIPELINE_PUSH_INTERVAL = 1.0
 
 # How long to keep polling the SD card after PrintDone for the new video to
 # appear, so we can stamp it with the real print-end time. The A1 mini renders
@@ -55,6 +61,11 @@ class AutoSyncMixin:
     def _make_ftp(self):  # pragma: no cover
         raise NotImplementedError
 
+    # ``_run_ipcam_harvest`` (IpcamSyncMixin) is stage 3 of the post-print
+    # pipeline below; declared callable-typed so the type checker sees the
+    # sibling-mixin method without shadowing it (same pattern as elsewhere).
+    _run_ipcam_harvest: "Callable[[Optional[dict], threading.Event], None]"
+
     def _init_autosync(self) -> None:
         """Initialize auto-sync state. Call from the plugin ``__init__``."""
         self._autosync_lock = threading.Lock()
@@ -64,6 +75,23 @@ class AutoSyncMixin:
         # SD-card videos (name -> size) snapshotted at PrintStarted, used to
         # detect this print's new/grown video at PrintDone.
         self._print_baseline: Optional[dict] = None
+        # Post-print pipeline state mirrored to the Raw Files tab (busy flag,
+        # harvest chunk counter, live download speed). Guarded by its own lock
+        # because progress callbacks arrive from FTP worker threads.
+        self._pipeline_lock = threading.Lock()
+        self._pipeline_state = {
+            "busy": False,
+            "stage": "",
+            "chunk_done": 0,
+            "chunk_total": 0,
+            "downloaded": 0,
+            "download_total": None,
+            "bytes_per_sec": 0,
+        }
+        self._pipeline_last_push = 0.0
+        # (monotonic time, transferred bytes) of the previous download-progress
+        # push; used to derive the live bytes_per_sec shown in the UI.
+        self._pipeline_speed_prev = None
 
     def on_event(self, event, payload) -> None:
         """Track OctoPrint's render state and trigger auto-sync on print end."""
@@ -81,8 +109,8 @@ class AutoSyncMixin:
                 target=self._snapshot_print_baseline, daemon=True
             ).start()
         elif event == Events.PRINT_DONE:
-            self._record_print_date()
-            self._on_print_done()
+            self._record_print_date(payload)
+            self._on_print_done(payload)
             self._maybe_measure_render_delay()
 
     def note_own_movie(self, movie_path: str) -> None:
@@ -105,8 +133,16 @@ class AutoSyncMixin:
         if movie:
             self._own_movies.discard(os.path.normpath(movie))
 
-    def _on_print_done(self) -> None:
-        if not self._settings.get_boolean(["auto_sync"]):
+    def _on_print_done(self, payload=None) -> None:
+        """Schedule the serial post-print pipeline (SD copy, ipcam harvest).
+
+        Runs when either stage is enabled; each stage checks its own setting
+        inside the worker, so an SD-copy-only or harvest-only configuration
+        still gets the shared delay + idle gate.
+        """
+        if not self._settings.get_boolean(["auto_sync"]) and not (
+            self._settings.get_boolean(["auto_download_ipcam"])
+        ):
             return
         delay = max(0, self._settings.get_int(["auto_sync_delay"]) or 0)
         cancel = threading.Event()
@@ -115,7 +151,9 @@ class AutoSyncMixin:
                 self._autosync_cancel.set()
             self._autosync_cancel = cancel
         threading.Thread(
-            target=self._autosync_worker, args=(delay, cancel), daemon=True
+            target=self._autosync_worker,
+            args=(delay, cancel, payload),
+            daemon=True,
         ).start()
 
     def _cancel_pending_autosync(self) -> None:
@@ -123,6 +161,93 @@ class AutoSyncMixin:
             if self._autosync_cancel is not None:
                 self._autosync_cancel.set()
                 self._autosync_cancel = None
+
+    # ------------------------------------------------------------------
+    # Post-print pipeline state (mirrored to the Raw Files tab)
+    # ------------------------------------------------------------------
+    def handle_pipeline_status(self) -> flask.Response:
+        """Return the pipeline busy flag + harvest progress (UI polling)."""
+        return flask.jsonify(ok=True, pipeline=self._pipeline_snapshot())
+
+    def _pipeline_snapshot(self) -> dict:
+        with self._pipeline_lock:
+            return dict(self._pipeline_state)
+
+    def _pipeline_update(self, **fields) -> None:
+        """Merge ``fields`` into the pipeline state and push it to the UI."""
+        with self._pipeline_lock:
+            self._pipeline_state.update(fields)
+            snapshot = dict(self._pipeline_state)
+        self._notify_pipeline(snapshot)
+
+    def _notify_pipeline(self, snapshot: dict) -> None:
+        self._plugin_manager.send_plugin_message(
+            self._identifier, {"type": "pipeline", **snapshot}
+        )
+
+    def _pipeline_chunk_progress(self, done: int, total: int) -> None:
+        """Harvest chunk counter (``done/total``), pushed per chunk."""
+        # A new chunk restarts its byte counter at 0, so the speed sample
+        # baseline must reset or the next delta would be negative.
+        self._pipeline_speed_prev = None
+        self._pipeline_update(chunk_done=done, chunk_total=total, downloaded=0)
+
+    def _pipeline_download_progress(self, transferred: int, total) -> None:
+        """Live byte progress of the chunk currently transferring.
+
+        Throttled to one push per :data:`_PIPELINE_PUSH_INTERVAL` — the FTP
+        chunk callback fires per network read and would otherwise flood the
+        push socket.
+        """
+        now = time.monotonic()
+        with self._pipeline_lock:
+            self._pipeline_state["downloaded"] = transferred
+            self._pipeline_state["download_total"] = total
+            prev = self._pipeline_speed_prev
+            if prev is not None and transferred < prev[1]:
+                # counter restarted (new file) — drop the stale baseline
+                prev = None
+            if prev is not None and now > prev[0]:
+                bps = (transferred - prev[1]) / (now - prev[0])
+                self._pipeline_state["bytes_per_sec"] = int(bps)
+            self._pipeline_speed_prev = (now, transferred)
+            if now - self._pipeline_last_push < _PIPELINE_PUSH_INTERVAL:
+                return
+            self._pipeline_last_push = now
+            snapshot = dict(self._pipeline_state)
+        self._notify_pipeline(snapshot)
+
+    @contextlib.contextmanager
+    def _manual_harvest_ui(self):
+        """Bracket a harvest with the pipeline busy flag (always lowered).
+
+        Used by both pipeline stage 3 and the manual ``harvest_now`` path, so
+        the Raw Files tab's progress bar and the held Timelapse refresh are
+        released no matter how the harvest ends.
+        """
+        self._pipeline_speed_prev = None
+        self._pipeline_update(
+            busy=True,
+            stage="harvest",
+            chunk_done=0,
+            chunk_total=0,
+            downloaded=0,
+            download_total=None,
+            bytes_per_sec=0,
+        )
+        try:
+            yield
+        finally:
+            self._pipeline_speed_prev = None
+            self._pipeline_update(
+                busy=False,
+                stage="",
+                chunk_done=0,
+                chunk_total=0,
+                downloaded=0,
+                download_total=None,
+                bytes_per_sec=0,
+            )
 
     # ------------------------------------------------------------------
     # Real print dates. Everything the A1 mini writes to the SD card carries
@@ -149,16 +274,23 @@ class AutoSyncMixin:
             )
             self._print_baseline = None
 
-    def _record_print_date(self) -> None:
+    def _record_print_date(self, payload=None) -> None:
         when = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         baseline = getattr(self, "_print_baseline", None)
+        gcode = (
+            payload.get("name") or payload.get("path")
+            if isinstance(payload, dict)
+            else None
+        )
         threading.Thread(
             target=self._record_print_date_worker,
-            args=(when, baseline),
+            args=(when, baseline, gcode),
             daemon=True,
         ).start()
 
-    def _record_print_date_worker(self, when: str, baseline) -> None:
+    def _record_print_date_worker(
+        self, when: str, baseline, gcode=None
+    ) -> None:
         # ``baseline`` maps name -> size at PrintStarted (or None if we never
         # got one — fall back to a snapshot taken now). A video that is new,
         # or that grew since the baseline, belongs to this print.
@@ -186,6 +318,8 @@ class AutoSyncMixin:
                 # If several changed at once, stamp them all with the same
                 # print-end time — they belong to this print.
                 self._store_print_dates(fresh, when)
+                if gcode:
+                    self._store_print_jobs(fresh, gcode)
                 self._logger.info(
                     "print-date: stamped %s with %s", sorted(fresh), when
                 )
@@ -205,17 +339,47 @@ class AutoSyncMixin:
         self._settings.set(["print_dates"], dates)
         self._settings.save()
 
-    def _autosync_worker(self, delay: int, cancel: threading.Event) -> None:
-        """Wait the delay, wait for the idle gate, then pull new timelapses."""
+    def _store_print_jobs(self, names, gcode: str) -> None:
+        """Map this print's new SD video(s) to their gcode job name.
+
+        Backs the manual-harvest label fallback (``_last_print_job``), so a
+        "Fetch from printer" pull is named after the real print instead of
+        ``unknown-print``.
+        """
+        jobs = dict(self._settings.get(["print_jobs"]) or {})
+        for name in names:
+            jobs[name] = gcode
+        self._settings.set(["print_jobs"], jobs)
+        self._settings.save()
+
+    def _autosync_worker(
+        self, delay: int, cancel: threading.Event, payload=None
+    ) -> None:
+        """The serial post-print pipeline (plan §Opt. 5).
+
+        Stage 1: wait the ring-buffer delay, then the idle gate. Stage 2: pull
+        the SD-card timelapse (``auto_sync``). Stage 3: harvest ``/ipcam``
+        (``auto_download_ipcam``) — strictly after stage 2, because a second
+        concurrent FTPS session yields ``425`` on the printer. The pipeline
+        busy flag brackets stage 3 so the Raw Files tab shows the harvest.
+        """
         try:
             if cancel.wait(timeout=delay):
                 return
             if not self._wait_until_idle(cancel):
                 return
-            self._do_autosync()
-        except (
-            Exception
-        ):  # noqa: BLE001 - a background trigger must never crash
+            if self._settings.get_boolean(["auto_sync"]):
+                self._do_autosync()
+            if (
+                self._settings.get_boolean(["auto_download_ipcam"])
+                and not cancel.is_set()
+            ):
+                with self._manual_harvest_ui():
+                    self._run_ipcam_harvest(payload, cancel)
+        # a background trigger must never crash; the FTP/transcode paths raise
+        # FtpError, and unexpected I/O/state surfaces as OSError/RuntimeError/
+        # ValueError — all logged rather than killing the daemon thread.
+        except (FtpError, OSError, RuntimeError, ValueError):
             self._logger.exception("auto-sync failed")
         finally:
             with self._autosync_lock:
@@ -309,7 +473,7 @@ class AutoSyncMixin:
             with self._make_ftp() as svc:
                 names = {f["name"] for f in svc.list_timelapses()}
             known = names
-        except Exception as exc:  # noqa: BLE001 - measurement must not crash
+        except (FtpError, OSError) as exc:  # measurement must not crash
             log.info("render-delay measure: initial list failed: %s", exc)
 
         appeared = None  # name of the new file
@@ -325,7 +489,7 @@ class AutoSyncMixin:
                     files = {
                         f["name"]: f.get("size") for f in svc.list_timelapses()
                     }
-            except Exception as exc:  # noqa: BLE001
+            except (FtpError, OSError) as exc:
                 log.info("render-delay measure: list failed: %s", exc)
                 continue
 

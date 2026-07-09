@@ -14,6 +14,7 @@
 [![Python][badge-python]](https://python.org)
 [![OctoPrint][badge-octoprint]](https://octoprint.org)
 [![Latest Release][badge-release]](https://github.com/Ajimaru/OctoPrint-BambuCam/releases/latest)
+[![Latest Prerelease][badge-prerelease]](https://github.com/Ajimaru/OctoPrint-BambuCam/releases)
 [![Downloads][badge-downloads]](https://github.com/Ajimaru/OctoPrint-BambuCam/releases)
 [![Made with Love][badge-love]](https://github.com/Ajimaru/OctoPrint-BambuCam)
 
@@ -21,6 +22,7 @@
 [badge-python]: https://img.shields.io/badge/python-3.9%2B-blue.svg?style=flat-square
 [badge-octoprint]: https://img.shields.io/badge/OctoPrint-1.10.0%2B-blue.svg?style=flat-square
 [badge-release]: https://img.shields.io/github/v/release/Ajimaru/OctoPrint-BambuCam?style=flat-square&sort=semver
+[badge-prerelease]: https://img.shields.io/github/v/release/Ajimaru/OctoPrint-BambuCam?include_prereleases&label=prerelease&style=flat-square&sort=semver
 [badge-downloads]: https://img.shields.io/github/downloads/Ajimaru/OctoPrint-BambuCam/total.svg?style=flat-square
 [badge-love]: https://img.shields.io/badge/made_with-%E2%9D%A4%EF%B8%8F-ff69b4?style=flat-square
 
@@ -46,6 +48,11 @@
 - 🤖 **Auto-sync after a print** — Optionally pull the new timelapse
   automatically once the print finishes and the system is idle (printer done,
   OctoPrint's own render finished) — copy or move, your choice
+- 🎬 **Raw Files render pipeline** — Harvest the printer's raw high-res
+  `/ipcam` footage per print (automatically or on demand), then concat and
+  render it into a finished `.mp4` with selectable quality presets — the clip
+  lands in OctoPrint's native Timelapse tab (see
+  [Render raw /ipcam footage](#render-raw-ipcam-footage))
 - 📸 **Snapshot & Timelapse** — Full `WebcamProviderPlugin` integration for
   OctoPrint's built-in timelapse engine
 - 💡 **Light toggle** — Switch the printer's light on/off from a button over the
@@ -216,7 +223,7 @@ Use **Test connection** to verify both values before saving.
 | Convert to `.mp4`   | on          | Re-encode copied `.avi` to playable `.mp4`.        |
 | Auto-sync           | off         | Pull new timelapses automatically after a print.   |
 | Auto-pull action    | `copy`      | `copy` (keep on SD) or `move` (delete from SD).    |
-| Delay after print   | `60 s`      | Wait before checking the SD card for the new file. |
+| Delay after print   | `420 s`     | Wait before checking the SD card for the new file. |
 
 <!-- markdownlint-enable MD013 -->
 
@@ -249,6 +256,38 @@ Notes and safety:
   always allowed (read-only). All SD writes are **admin-only**, the access code
   never appears in any log, and re-copying asks first then saves a numbered copy
   (`…-1.mp4`).
+
+## Render raw /ipcam footage
+
+Besides the finished SD-card timelapse, the A1 mini continuously records **raw
+high-resolution MJPEG chunks** (1680×1080) into its `/ipcam` ring buffer —
+even when the on-screen timelapse is off. The **Raw Files** tab turns that
+footage into finished clips:
+
+- **Harvest per print.** With _Auto-download /ipcam chunks_ enabled, the
+  plugin snapshots `/ipcam` at print start and pulls this print's new chunks
+  after the print ends (after the SD-card auto-sync, one FTPS session at a
+  time). A manual **Fetch from printer** button covers prints the plugin
+  didn't see. The live stream is paused during the pull — the printer serves
+  FTPS at roughly 180 KB/s and the stream would compete for the same link.
+  A running harvest shows a progress bar with live download speed and can be
+  **stopped** at any time; chunks already downloaded are kept for a
+  re-harvest.
+- **Concat + render.** Pick a quality preset (fast 720p up to full-resolution
+  archive) and render a group; ffmpeg concatenates the chunks losslessly and
+  re-encodes them to H.264 `.mp4`. The clip lands in OctoPrint's native
+  **Timelapse** tab, thumbnail included. Rendering waits for printer idle by
+  default, and an optional auto-render queues the job right after a complete
+  download.
+- **Manage the library.** Groups show duration, resolution, size and a
+  preview; expand a group to include/exclude or delete individual chunks.
+  Rendered groups stay listed for re-rendering with another preset and can be
+  aged out automatically (`chunks_retention_days`).
+
+Everything is admin-gated like the SD-card operations; fetching and rendering
+are blocked while a print runs. See the
+[Raw Files render pipeline](https://ajimaru.github.io/OctoPrint-BambuCam/architecture/render-pipeline/)
+docs for the full architecture.
 
 ## Security notes
 

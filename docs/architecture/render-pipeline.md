@@ -29,9 +29,10 @@ its own **Raw Files Render** settings section.
 
 ```text
 PrintStarted → /ipcam snapshot (baseline)
-PrintDone    → post-print pipeline (one serial worker, autosync.py):
+PrintDone    → record the print's real date/job on a side thread
+               (SD poll → print_dates/print_jobs), plus
+             → post-print pipeline (one serial worker, autosync.py):
    1.  wait auto_sync_delay + idle gate (ring-buffer write settles)
-   1b. record the print's real date/job (SD poll → print_dates/print_jobs)
    2.  SD-card timelapse copy (when auto_sync)
    3.  /ipcam harvest (when auto_download_ipcam):
        → /ipcam snapshot-diff = this print's chunks
@@ -59,19 +60,20 @@ print timelapse's first frame is an empty bed (a blank white tile), whereas the
 last frame shows the finished print. The thumbnail is best-effort — a failure
 never fails the render/transcode, and it does not depend on OctoPrint's optional
 `ffmpegThumbnailCommandline` (often unset on recent OctoPrint). When
-`raw_thumb_from_gcode` / `sd_thumb_from_gcode` is on, the print job's slicer
-plate preview (Bambu Connector's `plate_1.png`) is used as the thumbnail
-instead, falling back to the last video frame when no preview is found — see the
+`raw_thumb_from_gcode` is on, the print job's slicer plate preview (Bambu
+Connector's `plate_1.png`) is used as the thumbnail instead, falling back to
+the last video frame when no preview is found — see the
 [gcode-preview thumbnails](../reference/configuration.md#raw-files-render-pipeline)
 note.
 
 The harvest is **stage 3 of one serial post-print worker**, not its own
-thread. Pulling the print-date poll (stage 1b) into that worker too means its
-long SD poll can no longer interleave with the copy/harvest — all printer FTPS
-work runs strictly one session at a time. While the pipeline runs it mirrors a
-`busy` flag and per-chunk progress to the UI (see the `pipeline` push message),
-so the Timelapse tab holds its auto-refresh and the Raw Files tab locks its
-buttons and shows a harvest progress bar.
+thread, so it can never run concurrently with the SD-card copy (a second
+FTPS session yields `425` on the printer). The print-date recorder polls the
+SD card on its own side thread; its listing attempts simply fail-and-retry
+while a transfer holds the printer's single FTPS slot. While the pipeline
+runs it mirrors a `busy` flag and per-chunk progress to the UI (see the
+`pipeline` push message), so the Timelapse tab holds its auto-refresh and the
+Raw Files tab locks its buttons and shows a harvest progress bar.
 
 The `<print-id>` is `<YYYY-MM-DD_HHMM>__<gcode-stem>` built from the **real**
 PrintDone time (never the SD camera clock, which is wrong in LAN-only mode),
@@ -141,9 +143,20 @@ Even so, a harvest is inherently slow (the printer serves `/ipcam` at roughly
 180 KB/s); the UI shows a determinate chunk-count progress bar (`done/total`)
 with the live download speed of the chunk currently transferring beside it, and,
 on a partial failure, a specific toast naming the reason and how many chunks were
-secured. The speed is derived in the FTP transfer's per-block callback, sampled
-at ~1 Hz, and mirrored to the tab via the `bytes_per_sec` field of the pipeline
-push — so a 12-minute chunk visibly _lives_ rather than looking frozen.
+secured. The byte counter comes from the FTP transfer's per-block callback,
+throttled to ~1 push/s server-side (`downloaded`/`download_total` on the
+`pipeline` push); the displayed rate (`bytes_per_sec`) is derived server-side
+from consecutive samples — so a 12-minute chunk visibly _lives_ rather than
+looking frozen.
+
+A running harvest can be **aborted from the UI**: the Stop button beside the
+harvest bar (admin-only, `cancel_harvest` API) sets the harvest's cancel
+event, which the per-block progress callback checks — so even a long chunk
+transfer aborts promptly. Chunks already saved are kept and the group is left
+`incomplete` (terminal push `reason: "cancelled"` with `got`/`want`), ready
+for a re-harvest within the ring-buffer window. Both harvest paths register
+their cancel event while running (`_ipcam_cancel`), so the button works for
+the post-print pipeline stage as well as a manual fetch.
 
 ## Storage layout
 
@@ -158,6 +171,14 @@ Everything lives under the plugin data folder; the finished `.mp4` does **not**
   trash/                   # groups soft-deleted by the retention sweep
   metadata/jobs.json       # render job registry (atomic write)
 ```
+
+The bulky directories — `raw/chunks/`, `work/`, `trash/` — are excluded from
+OctoPrint backups via the `octoprint.plugin.backup.additional_excludes` hook:
+chunks are re-harvestable from the printer's `/ipcam` folder and the rest is
+transient. `thumbs/` and `metadata/` (small) stay in the backup so a restore
+keeps thumbnails and the raw-library state consistent with the rendered
+`.mp4`s in the timelapse folder. When the user excludes "timelapse" in the
+backup dialog, the whole `render/` tree is dropped instead.
 
 Two deletion paths exist. **Discarding a whole group** (`delete_group`, the
 "Discard" button) removes the group directory from disk **permanently** — an

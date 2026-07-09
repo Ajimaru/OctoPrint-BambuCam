@@ -24,13 +24,34 @@ from typing import Optional
 # BambuConnector marks its connection with ``connector == "bambu"``.
 _BAMBU_CONNECTOR = "bambu"
 
+# Failures that introspecting/driving BambuConnector's client can realistically
+# raise: a missing/renamed attribute (AttributeError), a wrong type or bad
+# property value (TypeError/ValueError), connector internal state (RuntimeError)
+# or the underlying MQTT/socket I/O the light setter triggers (OSError). Caught
+# so the connector path degrades to "unavailable" and the caller falls back.
+_CONNECTOR_ERRORS = (
+    AttributeError,
+    TypeError,
+    ValueError,
+    RuntimeError,
+    OSError,
+)
+
 
 def _dbg(logger, msg, *args):
     """Best-effort DEBUG log; never raises."""
     if logger is not None:
         try:
             logger.debug("connector_led: " + msg, *args)
-        except Exception:  # noqa: BLE001
+        # bad format string / broken handler — logging must never raise
+        except (
+            TypeError,
+            ValueError,
+            KeyError,
+            IndexError,
+            OSError,
+            RuntimeError,
+        ):
             pass
 
 
@@ -45,7 +66,7 @@ def _resolve_connection(printer):
     if callable(conn):
         try:
             conn = conn()
-        except Exception:  # noqa: BLE001
+        except (AttributeError, TypeError, RuntimeError, OSError):
             conn = None
     if conn is not None and not isinstance(conn, (bool, str, int)):
         return conn
@@ -81,7 +102,7 @@ def _bambu_printer(printer, logger=None):
             )
             return None
         return client
-    except Exception as exc:  # noqa: BLE001 - introspection must never raise
+    except _CONNECTOR_ERRORS as exc:
         _dbg(logger, "connection lookup raised: %r", exc)
         return None
 
@@ -105,7 +126,7 @@ def set_chamber_light(printer, on: bool, logger=None) -> bool:
         client.light_state = bool(on)
         _dbg(logger, "set light_state=%s via connector", bool(on))
         return True
-    except Exception as exc:  # noqa: BLE001 - any failure → fall back to MQTT
+    except _CONNECTOR_ERRORS as exc:  # any failure → fall back to MQTT
         _dbg(logger, "set light_state failed: %r", exc)
         return False
 
@@ -121,5 +142,5 @@ def current_state(printer, logger=None) -> Optional[bool]:
         return None
     try:
         return bool(client.light_state)
-    except Exception:  # noqa: BLE001
+    except _CONNECTOR_ERRORS:
         return None

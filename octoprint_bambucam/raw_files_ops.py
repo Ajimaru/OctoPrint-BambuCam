@@ -29,10 +29,10 @@ from . import render_presets
 from .ffprobe import FfprobeRunner, fallback_ffprobe_path
 from .gcode_thumb import gcode_thumb_source_by_stem
 from .raw_library import STATE_CHUNKS_READY, RawLibrary
-from .render_paths import RenderPaths, is_valid_print_id
+from .render_paths import RenderPaths, is_contained, is_valid_print_id
 from .render_queue import RenderQueue
 from .render_registry import JobRegistry
-from .render_worker import RenderWorker
+from .render_worker import RenderOptions, RenderWorker
 from .transcode import TRANSCODE_TIMEOUT
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -143,8 +143,9 @@ class RawFilesOpsMixin:
 
     def stop_render_pipeline(self) -> None:
         """Stop the render worker and retention timer if they were started."""
-        if self._render_queue is not None:
-            self._render_queue.stop()
+        queue = getattr(self, "_render_queue", None)
+        if queue is not None:
+            queue.stop()
         timer = getattr(self, "_retention_timer", None)
         if timer is not None:
             timer.cancel()
@@ -163,7 +164,8 @@ class RawFilesOpsMixin:
     def _retention_sweep(self) -> None:
         try:
             self._retention_cleanup()
-        except Exception:  # noqa: BLE001 - a timer tick must never crash
+        # a timer tick must never crash
+        except Exception:  # noqa: BLE001  # pylint: disable=broad-except
             self._logger.exception("retention sweep failed")
 
     def _retention_cleanup(self) -> None:
@@ -189,7 +191,10 @@ class RawFilesOpsMixin:
             if os.path.getmtime(marker) >= cutoff:
                 continue
             group = paths.group_dir(print_id)
-            if group is None:
+            # re-assert containment at the sink (group is already vetted by
+            # group_dir; this guards against future callers and makes the
+            # sanitization visible to taint analysis)
+            if group is None or not is_contained(group, paths.raw_chunks_dir):
                 continue
             if to_trash:
                 removed = self._trash_group(print_id)
@@ -205,6 +210,8 @@ class RawFilesOpsMixin:
                 )
         for entry in _listdir_safe(paths.trash_dir):
             path = os.path.join(paths.trash_dir, entry)
+            if not is_contained(path, paths.trash_dir):
+                continue
             try:
                 if os.path.getmtime(path) < cutoff:
                     shutil.rmtree(path, ignore_errors=True)
@@ -225,15 +232,18 @@ class RawFilesOpsMixin:
         worker = RenderWorker(
             self._logger,
             self._render_paths(),
-            ffmpeg_path=self._ffmpeg_path(),
             timelapse_folder=self._settings.global_get_basefolder("timelapse"),
             fire_movie_done=self._fire_movie_done,
             output_name=self._render_output_name,
-            threads=self._ffmpeg_threads(),
-            timeout=(
-                self._settings.get_int(["render_timeout"]) or TRANSCODE_TIMEOUT
+            options=RenderOptions(
+                ffmpeg_path=self._ffmpeg_path(),
+                threads=self._ffmpeg_threads(),
+                timeout=(
+                    self._settings.get_int(["render_timeout"])
+                    or TRANSCODE_TIMEOUT
+                ),
+                gcode_thumb=self._raw_gcode_thumb(job.get("print_id")),
             ),
-            gcode_thumb=self._raw_gcode_thumb(job.get("print_id")),
         )
         return worker.run(job, cancel, progress_cb)
 
@@ -377,7 +387,8 @@ class RawFilesOpsMixin:
                     print_id,
                     result.get("reason"),
                 )
-        except Exception:  # noqa: BLE001 - harvest must survive this hook
+        # harvest must survive this hook
+        except Exception:  # noqa: BLE001  # pylint: disable=broad-except
             self._logger.exception("auto-render failed for %s", print_id)
 
     def handle_cancel_render(self, data) -> flask.Response:
@@ -411,7 +422,14 @@ class RawFilesOpsMixin:
         """Permanently remove a group directory from disk (used by Discard)."""
         paths = self._render_paths()
         group = paths.group_dir(print_id)
-        if group is None or not os.path.isdir(group):
+        # re-assert containment at the sink (group is already vetted by
+        # group_dir; this guards against future callers and makes the
+        # sanitization visible to taint analysis)
+        if (
+            group is None
+            or not is_contained(group, paths.raw_chunks_dir)
+            or not os.path.isdir(group)
+        ):
             return False
         try:
             shutil.rmtree(group)
@@ -424,9 +442,15 @@ class RawFilesOpsMixin:
         """Soft-delete a group to ``trash/`` (used by the retention sweep)."""
         paths = self._render_paths()
         group = paths.group_dir(print_id)
-        if group is None or not os.path.isdir(group):
+        if (
+            group is None
+            or not is_contained(group, paths.raw_chunks_dir)
+            or not os.path.isdir(group)
+        ):
             return False
         dest = os.path.join(paths.trash_dir, print_id)
+        if not is_contained(dest, paths.trash_dir):
+            return False
         try:
             if os.path.exists(dest):
                 shutil.rmtree(dest, ignore_errors=True)
@@ -483,10 +507,16 @@ class RawFilesOpsMixin:
     def _remove_chunk_files(self, print_id, names) -> set:
         """``os.remove`` each contained chunk; return names actually gone."""
         paths = self._render_paths()
+        group = paths.group_dir(print_id)
+        if group is None:
+            return set()
         removed = set()
         for name in names:
             path = paths.chunk_path(print_id, name)
-            if path is None:
+            # re-assert containment at the sink (path is already vetted by
+            # chunk_path; this guards against future callers and makes the
+            # sanitization visible to taint analysis)
+            if path is None or not is_contained(path, group):
                 continue
             try:
                 os.remove(path)
@@ -503,8 +533,18 @@ class RawFilesOpsMixin:
         """Drop ``removed`` from ``order.json`` (atomic; best-effort)."""
         if not removed:
             return
-        order_file = self._render_paths().order_file(print_id)
-        if order_file is None or not os.path.isfile(order_file):
+        paths = self._render_paths()
+        group = paths.group_dir(print_id)
+        order_file = paths.order_file(print_id)
+        # re-assert containment at the sink (order_file is already vetted by
+        # order_file/group_dir; this guards against future callers and makes
+        # the sanitization visible to taint analysis)
+        if (
+            group is None
+            or order_file is None
+            or not is_contained(order_file, group)
+            or not os.path.isfile(order_file)
+        ):
             return
         try:
             with open(order_file, encoding="utf-8") as fh:
@@ -583,10 +623,18 @@ class RawFilesOpsMixin:
         if not present:
             return
         last = present[-1]["file"]
-        src = self._render_paths().chunk_path(print_id, last)
-        out = self._render_paths().thumb_file(print_id)
+        paths = self._render_paths()
+        src = paths.chunk_path(print_id, last)
+        out = paths.thumb_file(print_id)
         ffmpeg = self._ffmpeg_path()
         if not src or not out or not ffmpeg:
+            return
+        # re-assert containment at the sink (src/out are already vetted by
+        # chunk_path/thumb_file; this guards against future callers and
+        # makes the sanitization visible to taint analysis)
+        if not is_contained(src, paths.raw_chunks_dir) or not is_contained(
+            out, paths.thumbs_dir
+        ):
             return
         tmp = out + ".part"
         # ffmpeg picks the output muxer from the file extension, which the
@@ -630,8 +678,16 @@ class RawFilesOpsMixin:
         """Serve a group's raw-preview JPEG, or 404."""
         if not is_valid_print_id(print_id):
             flask.abort(404)
-        out = self._render_paths().thumb_file(print_id)
-        if out is None or not os.path.isfile(out):
+        paths = self._render_paths()
+        out = paths.thumb_file(print_id)
+        # re-assert containment at the sink (out is already vetted by
+        # thumb_file; this guards against future callers and makes the
+        # sanitization visible to taint analysis)
+        if (
+            out is None
+            or not is_contained(out, paths.thumbs_dir)
+            or not os.path.isfile(out)
+        ):
             flask.abort(404)
         with open(out, "rb") as fh:
             data = fh.read()

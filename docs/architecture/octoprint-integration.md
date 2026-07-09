@@ -62,6 +62,18 @@ bindings; `is_template_autoescaped()` returns `True`.
 
 `get_assets()` bundles `js/BambuCam.js` and `css/BambuCam.css`.
 
+## Backup excludes hook
+
+`get_additional_backup_excludes()` (the
+`octoprint.plugin.backup.additional_excludes` hook) keeps the bulky render
+intermediates out of OctoPrint backups: `render/raw/chunks`, `render/work` and
+`render/trash` are excluded (chunks are re-harvestable from the printer,
+work/trash are transient), while the small `render/thumbs` and
+`render/metadata` stay in so restored thumbnails still match the rendered
+videos. When the user excludes "timelapse" in the backup dialog, the whole
+`render/` tree is dropped for consistency. Details in the
+[render pipeline](render-pipeline.md) storage section.
+
 ## Software update hook
 
 `get_update_information()` wires the `bambucam` plugin into OctoPrint's

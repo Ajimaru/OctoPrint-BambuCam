@@ -31,6 +31,9 @@ settings, template, asset, event-handler and simple-API mixins.
 - **SD-card timelapse manager** — list, copy, move, delete over FTPS, with
   thumbnails and automatic `.avi` → `.mp4` conversion.
 - **Auto-sync** — pull a print's new timelapse automatically once idle.
+- **Raw Files render pipeline** — harvest the printer's raw high-res `/ipcam`
+  chunks per print (stoppable mid-pull) and concat + render them to `.mp4`
+  with quality presets, queued and idle-gated.
 - **Light toggle** & **auto-config** via OctoPrint-BambuConnector.
 - **Security hardened** — access code never logged or exposed; printer TLS
   floored at 1.2; privileged actions permission-gated; loopback-only snapshots.

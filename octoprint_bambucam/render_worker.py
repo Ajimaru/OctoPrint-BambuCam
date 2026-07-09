@@ -19,11 +19,12 @@ import logging
 import os
 import shutil
 import time
+from dataclasses import dataclass
 from typing import Callable, Optional
 
 from . import render_paths, render_presets
 from .gcode_thumb import write_gcode_thumbnail
-from .transcode import TRANSCODE_TIMEOUT, _run_command
+from .transcode import TRANSCODE_TIMEOUT, TranscodeError, _run_command
 
 
 class RenderError(Exception):
@@ -32,6 +33,24 @@ class RenderError(Exception):
     def __init__(self, reason: str, message: str = ""):
         super().__init__(message or reason)
         self.reason = reason
+
+
+@dataclass
+class RenderOptions:
+    """ffmpeg encoding knobs for a :class:`RenderWorker`.
+
+    Groups the tuning/injection parameters (kept out of the constructor's
+    positional deps) so the worker stays under the argument-count limit.
+    ``runner`` is the injection seam for tests so no real ffmpeg is spawned;
+    ``gcode_thumb`` is an optional preview PNG to use as the clip thumbnail
+    instead of a video frame.
+    """
+
+    ffmpeg_path: Optional[str]
+    runner: Optional[Callable] = None
+    timeout: int = TRANSCODE_TIMEOUT
+    threads: int = 1
+    gcode_thumb: Optional[str] = None
 
 
 class RenderWorker:
@@ -48,29 +67,25 @@ class RenderWorker:
         logger: logging.Logger,
         paths,
         *,
-        ffmpeg_path: Optional[str],
         timelapse_folder: str,
         fire_movie_done: Callable[[str], None],
         output_name: Callable[[str, str], str],
-        runner=None,
-        timeout: int = TRANSCODE_TIMEOUT,
-        threads: int = 1,
-        gcode_thumb: Optional[str] = None,
+        options: RenderOptions,
     ):
         self._logger = logger
         self._paths = paths
-        self._ffmpeg = (ffmpeg_path or "").strip() or None
+        self._ffmpeg = (options.ffmpeg_path or "").strip() or None
         self._timelapse_folder = timelapse_folder
         self._fire_movie_done = fire_movie_done
         self._output_name = output_name
-        self._runner = runner or _run_command
-        self._timeout = timeout
+        self._runner = options.runner or _run_command
+        self._timeout = options.timeout
         # Optional gcode preview PNG (Bambu Connector) to use as the clip's
         # thumbnail instead of a video frame; None → use the last video frame.
-        self._gcode_thumb = gcode_thumb
+        self._gcode_thumb = options.gcode_thumb
         # ffmpeg -threads for the encode step; 0 lets ffmpeg pick (all cores),
         # a positive value caps CPU use (default 1, Pi-friendly). Never < 0.
-        self._threads = max(int(threads), 0)
+        self._threads = max(int(options.threads), 0)
 
     def available(self) -> bool:
         """True when an ffmpeg path is configured."""
@@ -281,13 +296,16 @@ class RenderWorker:
         print) is grabbed with ``-sseof -1``, which makes a better thumbnail
         than the empty-bed first frame.
         """
+        ffmpeg = self._ffmpeg
+        if ffmpeg is None:  # unreachable via run() (guarded by available())
+            return
         thumb = mp4_path + ".thumb.jpg"
         if self._gcode_thumb and write_gcode_thumbnail(
-            self._ffmpeg, self._gcode_thumb, thumb, self._runner, self._timeout
+            ffmpeg, self._gcode_thumb, thumb, self._runner, self._timeout
         ):
             return
         cmd = [
-            self._ffmpeg,
+            ffmpeg,
             "-sseof",
             "-1",
             "-i",
@@ -301,7 +319,8 @@ class RenderWorker:
         ]
         try:
             self._runner(cmd, self._timeout, None, None)
-        except Exception:  # noqa: BLE001 - thumbnail is cosmetic
+        except (RenderError, TranscodeError, OSError, ValueError):
+            # thumbnail is cosmetic
             self._logger.warning("thumbnail generation failed for %s", mp4_path)
 
 

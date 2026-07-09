@@ -105,6 +105,11 @@ class _Host(AutoSyncMixin):
         """Record the ``(op, names)`` batch instead of transferring files."""
         self.ran.append((op, names))
 
+    # dep from IpcamSyncMixin (BambucamPlugin mixes it in); no-op here so the
+    # worker's stage-3 call resolves. Tests that assert on it override this.
+    def _run_ipcam_harvest(self, payload, cancel):
+        """No-op ipcam-harvest stand-in."""
+
 
 def _settings(**over):
     """Build a default auto-sync settings dict, overridable via kwargs."""
@@ -531,3 +536,110 @@ def test_record_print_date_preserves_existing(monkeypatch):
         "video_2026-05-18_03-02-39.avi": "2026-06-01 10:00",
         "video_2026-05-18_06-26-58.avi": "2026-06-22 14:42",
     }
+
+
+# ── post-print pipeline state (Raw Files tab mirror) ─────────────────────
+
+
+def test_pipeline_chunk_progress_updates_state_and_pushes():
+    """Chunk progress updates the snapshot and pushes a pipeline message."""
+    host = _Host(_settings())
+    host._pipeline_chunk_progress(2, 5)
+    snap = host._pipeline_snapshot()
+    assert snap["chunk_done"] == 2
+    assert snap["chunk_total"] == 5
+    assert host.sent
+    assert host.sent[-1]["type"] == "pipeline"
+
+
+def test_pipeline_download_progress_throttles():
+    """Byte progress always updates state but throttles push messages."""
+    host = _Host(_settings())
+    host._pipeline_download_progress(10, 100)  # first push goes out
+    pushes = len(host.sent)
+    host._pipeline_download_progress(20, 100)  # within the interval: no push
+    assert len(host.sent) == pushes
+    snap = host._pipeline_snapshot()
+    assert snap["downloaded"] == 20
+    assert snap["download_total"] == 100
+
+
+def test_manual_harvest_ui_always_lowers_busy():
+    """The busy flag is raised inside the bracket and lowered on exit."""
+    host = _Host(_settings())
+    with host._manual_harvest_ui():
+        assert host._pipeline_snapshot()["busy"] is True
+    assert host._pipeline_snapshot()["busy"] is False
+
+
+def test_manual_harvest_ui_lowers_busy_on_error():
+    """The busy flag is lowered even when the harvest raises."""
+    host = _Host(_settings())
+    try:
+        with host._manual_harvest_ui():
+            raise RuntimeError("boom")
+    except RuntimeError:
+        pass
+    assert host._pipeline_snapshot()["busy"] is False
+
+
+def test_worker_runs_ipcam_stage_after_sd_copy():
+    """Stage 3 runs (with the busy bracket) when auto_download_ipcam is on."""
+    host = _Host(
+        _settings(auto_sync=False, auto_download_ipcam=True),
+        sd_names=["video_2026-05-18_06-50-48.avi"],
+    )
+    harvested = []
+    host._run_ipcam_harvest = (  # type: ignore[method-assign]
+        lambda payload, cancel: harvested.append(payload)
+    )
+    host._autosync_worker(0, threading.Event(), {"name": "x.gcode"})
+    assert harvested == [{"name": "x.gcode"}]
+    # auto_sync off: the SD copy stage must not have run
+    assert not host.ran
+    assert host._pipeline_snapshot()["busy"] is False
+
+
+def test_print_done_triggers_for_ipcam_only():
+    """auto_download_ipcam alone (auto_sync off) still schedules the worker."""
+    host = _Host(_settings(auto_sync=False, auto_download_ipcam=True))
+    # Block the worker inside stage 3 so it can't reach its ``finally`` (which
+    # clears ``_autosync_cancel``) before we assert — otherwise the just-started
+    # thread races the assertion on this idle host.
+    release = threading.Event()
+    host._run_ipcam_harvest = (  # type: ignore[method-assign]
+        lambda payload, cancel: release.wait(timeout=5)
+    )
+    host._on_print_done({"name": "x.gcode"})
+    assert host._autosync_cancel is not None
+    release.set()
+    host._cancel_pending_autosync()
+
+
+def test_record_print_date_stores_print_jobs(monkeypatch):
+    """With a gcode name, the new video is also mapped in print_jobs."""
+    host = _Host(_settings(print_dates={}, print_jobs={}))
+    _no_wait(monkeypatch)
+    baseline = {}
+    host._snapshot_videos = lambda: {
+        "video_2026-05-18_06-26-58.avi": 8363434,
+    }
+    host._record_print_date_worker(
+        "2026-06-22 14:42", baseline, gcode="gearbox.gcode"
+    )
+    assert host._settings.get(["print_jobs"]) == {
+        "video_2026-05-18_06-26-58.avi": "gearbox.gcode"
+    }
+
+
+def test_pipeline_status_reports_idle():
+    """handle_pipeline_status returns ok + the idle snapshot."""
+    import flask as _flask
+
+    host = _Host(_settings())
+    app = _flask.Flask(__name__)
+    with app.test_request_context():
+        payload = host.handle_pipeline_status().get_json()
+    assert payload["ok"] is True
+    assert payload["pipeline"]["busy"] is False
+    assert payload["pipeline"]["chunk_total"] == 0

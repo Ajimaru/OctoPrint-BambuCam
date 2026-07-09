@@ -76,8 +76,8 @@ The frontend uses OctoPrint's simple-API:
 | Toggle light     | `simpleApiCommand(..., "set_led")`          | CONTROL    |
 
 Status is polled every 10 s while the settings dialog is open. The plugin also
-pushes `daemon_state`, `timelapse_op`, `convert_op` and `auto_sync` messages
-over the data updater.
+pushes `daemon_state`, `timelapse_op`, `convert_op`, `auto_sync`, `led_state`,
+`pipeline`, `render_job` and `ipcam_download` messages over the data updater.
 
 See the [HTTP API reference](../reference/http-api.md) for request/response
 shapes.

@@ -375,6 +375,53 @@ class TestFilenameBuild:
         suffix = plugin._sanitized_suffix()
         assert len(suffix) <= 32
 
+    @staticmethod
+    def _prefix_settings(plugin, jobs, enabled=True, suffix=""):
+        """Wire the settings mock for the job-name-prefix tests."""
+        values = {
+            ("download_suffix",): suffix,
+            ("print_jobs",): jobs,
+        }
+        plugin._settings.get = lambda k: values.get(tuple(k), "")
+        plugin._settings.get_boolean = lambda k: (
+            enabled if k == ["prefix_job_name"] else False
+        )
+
+    def test_job_prefix_prepended(self, plugin, tmp_path):
+        self._prefix_settings(
+            plugin,
+            {"video1.mp4": "benchy.gcode.3mf"},
+            suffix="_bambu",
+        )
+        dest = plugin._build_dest_path(str(tmp_path), "video1.mp4", None)
+        assert os.path.basename(dest) == "benchy.gcode.3mf_video1_bambu.mp4"
+
+    def test_job_prefix_disabled(self, plugin, tmp_path):
+        self._prefix_settings(
+            plugin, {"video1.mp4": "benchy.gcode.3mf"}, enabled=False
+        )
+        dest = plugin._build_dest_path(str(tmp_path), "video1.mp4", None)
+        assert os.path.basename(dest) == "video1.mp4"
+
+    def test_job_prefix_unknown_video(self, plugin, tmp_path):
+        """A video without a recorded job gets no prefix."""
+        self._prefix_settings(plugin, {})
+        dest = plugin._build_dest_path(str(tmp_path), "video1.mp4", None)
+        assert os.path.basename(dest) == "video1.mp4"
+
+    def test_job_prefix_length_capped(self, plugin, tmp_path):
+        self._prefix_settings(plugin, {"video1.mp4": "j" * 200})
+        prefix = plugin._sanitized_prefix("video1.mp4")
+        assert len(prefix) <= 65  # 64 chars + "_"
+
+    def test_local_copy_matches_unprefixed_old_copy(self, plugin, tmp_path):
+        """A file copied before the prefix option still counts as copied."""
+        self._prefix_settings(plugin, {"video1.mp4": "benchy.gcode.3mf"})
+        plugin._settings.global_get_basefolder = lambda _x: str(tmp_path)
+        (tmp_path / "video1.mp4").write_text("x")
+        assert plugin._local_copy_name("video1.mp4") == "video1.mp4"
+        assert plugin._already_copied("video1.mp4") is True
+
     def test_collision_cap_returns_conflict(self, plugin, tmp_path):
         plugin._settings.get = lambda k: ""
         result = plugin._collision_safe(str(tmp_path), "v", ".mp4")
@@ -658,7 +705,6 @@ class TestDateHandling:
     def test_copied_file_uses_real_mtime(self, plugin, app, tmp_path):
         """A copied file shows its real local mtime (set at copy time), not the
         wrong camera date the printer stamped on the SD."""
-        import os as _os
         import time as _time
 
         plugin._settings.get = lambda k: ""
@@ -666,7 +712,7 @@ class TestDateHandling:
         local = tmp_path / "video_2026-05-18_03-02-39.avi"
         local.write_text("x")
         now = _time.time()
-        _os.utime(local, (now, now))
+        os.utime(local, (now, now))
 
         class ListSvc(FakeService):
             def list_timelapses(self):
@@ -979,6 +1025,82 @@ class TestLocalAvi:
         plugin._settings.global_get_basefolder = lambda _x: str(tmp_path)
         out = _json(plugin, "convert_local_avi", {"names": []}, app)
         assert out["reason"] == "bad_name"
+
+    def test_collision_safe_path_appends_suffix(self, plugin, tmp_path):
+        (tmp_path / "v.mp4").write_text("x")
+        (tmp_path / "v-1.mp4").write_text("x")
+        got = plugin._collision_safe_path(str(tmp_path / "v.mp4"))
+        assert got == str(tmp_path / "v-2.mp4")
+
+    def test_collision_safe_path_cap_returns_original(
+        self, plugin, tmp_path, monkeypatch
+    ):
+        """When every candidate collides, the original path comes back."""
+        monkeypatch.setattr(
+            "octoprint_bambucam.timelapse_ops.os.path.exists",
+            lambda _p: True,
+        )
+        p = str(tmp_path / "v.mp4")
+        assert plugin._collision_safe_path(p) == p
+
+    def test_convert_rejected_while_busy(self, plugin, app, tmp_path):
+        plugin._settings.global_get_basefolder = lambda _x: str(tmp_path)
+        plugin._make_transcoder = lambda: FakeTranscoder(avail=True)
+        plugin._ftp_busy = True
+        out = _json(plugin, "convert_local_avi", {"names": ["a.avi"]}, app)
+        assert out == {"ok": False, "reason": "busy"}
+
+    def test_convert_queues_background_batch(
+        self, plugin, app, tmp_path, monkeypatch
+    ):
+        plugin._settings.global_get_basefolder = lambda _x: str(tmp_path)
+        plugin._make_transcoder = lambda: FakeTranscoder(avail=True)
+        started = {}
+
+        class FakeThread:
+            def __init__(self, target=None, args=(), daemon=None):
+                started["target"] = target
+                started["args"] = args
+
+            def start(self):
+                started["started"] = True
+
+        monkeypatch.setattr(
+            "octoprint_bambucam.timelapse_ops.threading.Thread", FakeThread
+        )
+        out = _json(
+            plugin, "convert_local_avi", {"names": ["a.avi", "b.avi"]}, app
+        )
+        assert out == {"ok": True, "queued": 2}
+        assert started["started"] is True
+        assert started["args"] == (["a.avi", "b.avi"],)
+        assert plugin._ftp_busy is True  # held until the batch releases it
+
+    def test_convert_batch_uncontained_skipped_bad_name(self, plugin, tmp_path):
+        plugin._settings.global_get_basefolder = lambda _x: str(tmp_path)
+        (tmp_path / "a.avi").write_text("avi")
+        plugin._make_transcoder = lambda: FakeTranscoder(ok=True)
+        plugin._is_contained = lambda _p, _b: False
+        pm = plugin._plugin_manager
+        plugin._run_convert_batch(["a.avi"])
+        msgs = [c.args[1] for c in pm.send_plugin_message.call_args_list]
+        skipped = [m for m in msgs if m.get("state") == "skipped"]
+        assert skipped and skipped[0]["reason"] == "bad_name"
+        assert msgs[-1]["summary"]["skipped"] == 1
+        assert os.path.exists(tmp_path / "a.avi")  # untouched
+
+    def test_convert_batch_crash_releases_busy_flag(self, plugin, tmp_path):
+        plugin._settings.global_get_basefolder = lambda _x: str(tmp_path)
+        (tmp_path / "a.avi").write_text("avi")
+        plugin._make_transcoder = lambda: FakeTranscoder(ok=True)
+
+        def boom(_path, _base):
+            raise RuntimeError("containment check exploded")
+
+        plugin._is_contained = boom
+        plugin._ftp_busy = True
+        plugin._run_convert_batch(["a.avi"])  # must not raise
+        assert plugin._ftp_busy is False
 
     def test_convert_batch_converts_and_removes(self, plugin, tmp_path):
         plugin._settings.global_get_basefolder = lambda _x: str(tmp_path)

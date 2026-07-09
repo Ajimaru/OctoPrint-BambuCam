@@ -313,8 +313,8 @@ class TestRunRenderJob:
             lambda *a: None,
         )
         assert out == "/tmp/out.mp4"  # noqa: S108
-        assert captured["timeout"] == 9000
-        assert captured["threads"] == 3
+        assert captured["options"].timeout == 9000
+        assert captured["options"].threads == 3
 
     def test_gcode_thumb_off_by_default(self, tmp_path, monkeypatch):
         """With raw_thumb_from_gcode off the worker gets gcode_thumb=None."""
@@ -340,7 +340,7 @@ class TestRunRenderJob:
             MagicMock(),
             lambda *a: None,
         )
-        assert captured["gcode_thumb"] is None
+        assert captured["options"].gcode_thumb is None
 
     def test_gcode_thumb_resolved_when_on(self, tmp_path, monkeypatch):
         """When on, the print-id stem resolves the connector preview PNG."""
@@ -377,7 +377,7 @@ class TestRunRenderJob:
             MagicMock(),
             lambda *a: None,
         )
-        assert captured["gcode_thumb"].endswith("plate_1.png")
+        assert captured["options"].gcode_thumb.endswith("plate_1.png")
 
     def test_threads_zero_means_all_cores(self, tmp_path, monkeypatch):
         """``ffmpeg_threads`` 0 (all cores) must reach the worker as 0.
@@ -409,7 +409,7 @@ class TestRunRenderJob:
             MagicMock(),
             lambda *a: None,
         )
-        assert captured["threads"] == 0
+        assert captured["options"].threads == 0
 
 
 @pytest.mark.usefixtures("app")
