@@ -626,7 +626,8 @@ class BambucamPlugin(
                 ok=True, ffmpeg=self._make_transcoder().status()
             )
         if command == "fetch_info":
-            assert self._manager is not None
+            if self._manager is None:  # caller guarantees; belt-and-braces
+                flask.abort(500)
             info = self._manager.fetch_info()
             if info is None:
                 return flask.jsonify(ok=False, reason="unreachable")
