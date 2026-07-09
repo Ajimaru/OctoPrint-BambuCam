@@ -21,8 +21,8 @@
 [badge-license]: https://img.shields.io/github/license/Ajimaru/OctoPrint-BambuCam?style=flat-square
 [badge-python]: https://img.shields.io/badge/python-3.9%2B-blue.svg?style=flat-square
 [badge-octoprint]: https://img.shields.io/badge/OctoPrint-1.10.0%2B-blue.svg?style=flat-square
-[badge-release]: https://img.shields.io/github/v/release/Ajimaru/OctoPrint-BambuCam?style=flat-square&sort=semver
-[badge-prerelease]: https://img.shields.io/github/v/release/Ajimaru/OctoPrint-BambuCam?include_prereleases&label=prerelease&style=flat-square&sort=semver
+[badge-release]: https://img.shields.io/github/v/release/Ajimaru/OctoPrint-BambuCam?style=flat-square
+[badge-prerelease]: https://img.shields.io/github/v/release/Ajimaru/OctoPrint-BambuCam?include_prereleases&label=prerelease&style=flat-square
 [badge-downloads]: https://img.shields.io/github/downloads/Ajimaru/OctoPrint-BambuCam/total.svg?style=flat-square
 [badge-love]: https://img.shields.io/badge/made_with-%E2%9D%A4%EF%B8%8F-ff69b4?style=flat-square
 
@@ -404,7 +404,7 @@ systeminfo bundle when opening a bug report.
 
 [b-semver]: https://img.shields.io/badge/semver-2.0.0-blue?style=flat-square
 [b-reldate]: https://img.shields.io/github/release-date/Ajimaru/OctoPrint-BambuCam?style=flat-square
-[b-latest]: https://img.shields.io/github/v/release/Ajimaru/OctoPrint-BambuCam?style=flat-square&sort=semver
+[b-latest]: https://img.shields.io/github/v/release/Ajimaru/OctoPrint-BambuCam?style=flat-square
 [b-dl]: https://img.shields.io/github/downloads/Ajimaru/OctoPrint-BambuCam/total.svg?style=flat-square
 [b-pre]: https://img.shields.io/github/v/release/Ajimaru/OctoPrint-BambuCam?style=flat-square&include_prereleases&label=pre-release
 [b-py]: https://img.shields.io/badge/python-3.9%2B-blue.svg?style=flat-square
