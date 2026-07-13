@@ -134,6 +134,9 @@ class BambucamPlugin(
                 self._settings.get_plugin_logfile_path(postfix="http"),
                 maxBytes=2 * 1024 * 1024,
                 backupCount=3,
+                # don't create the log file at plugin init; only once the
+                # first HTTP request line is actually logged (--loghttp on)
+                delay=True,
             )
             handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
             logger.addHandler(handler)

@@ -384,6 +384,28 @@ class TestPumpLogs:
         manager._pump_logs(proc)
         http_logger.info.assert_called_once_with(line)
 
+    def test_timestamped_diagnostics_stay_in_plugin_log(self, manager):
+        """webcamd lifecycle/error lines carry the same timestamp prefix as
+        HTTP request lines but no client IP — they must reach the plugin
+        logger, never the HTTP logger."""
+        http_logger = MagicMock()
+        manager._http_logger = http_logger
+        manager._logger = MagicMock()
+        lines = [
+            "2024-01-01 12:00:00.123456: web server started",
+            "2024-01-01 12:00:00.123456: creating socket",
+            "2024-01-01 12:00:00.123456: printer unreachable "
+            "(check hostname)",
+            "2024-01-01 12:00:00.123456: no data received - possible "
+            "invalid access code provided",
+        ]
+        proc = self._process(lines)
+        manager._pump_logs(proc)
+        http_logger.info.assert_not_called()
+        logged = [c.args[1] for c in manager._logger.debug.call_args_list]
+        for line in lines:
+            assert line in logged
+
     def test_empty_lines_skipped(self, manager):
         """Blank lines are silently dropped and never reach the HTTP logger."""
         http_logger = MagicMock()
