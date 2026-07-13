@@ -86,6 +86,16 @@ class TestSetupHttpLogger:
         ]
         assert len(own_handlers) <= 1
 
+    def test_file_creation_is_deferred(self, plugin):
+        """The handler is created with delay=True so the log file only
+        appears once the first HTTP line is actually logged."""
+        # the named logger is process-global; drop handlers earlier tests
+        # may have attached so _setup_http_logger creates one again
+        logging.getLogger("octoprint.plugins.bambucam.http").handlers = []
+        with patch("logging.handlers.RotatingFileHandler") as mock_handler:
+            plugin._setup_http_logger()
+        assert mock_handler.call_args.kwargs.get("delay") is True
+
 
 # ---------------------------------------------------------------------------
 # on_after_startup

@@ -29,7 +29,15 @@ _BACKOFF_INITIAL = 2.0
 _BACKOFF_MAX = 60.0
 _EXIT_PRINTER_OFFLINE = 75
 _OFFLINE_RECONNECT_INTERVAL = 30.0
-_HTTP_LOG_RE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?: ")
+# webcamd prefixes ALL of its diagnostics with "{datetime.now()}: ", but only
+# the --loghttp request lines put the client IP right after the timestamp
+# ("...: 192.168.1.152 GET /stream ..."). Requiring the IP keeps lifecycle
+# and error output ("printer unreachable", "web server started", ...) in the
+# main plugin log instead of silently diverting it to the http log.
+_HTTP_LOG_RE = re.compile(
+    r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?: "
+    r"\d{1,3}(?:\.\d{1,3}){3} "
+)
 
 
 class WebcamdManager:
@@ -323,7 +331,11 @@ class WebcamdManager:
                 if self._http_logger is not None and _HTTP_LOG_RE.match(line):
                     self._http_logger.info(line)
                 else:
-                    self._logger.info("webcamd: %s", line)
+                    # raw webcamd stdout carries no level of its own (routine
+                    # lifecycle noise and real errors look identical), so it
+                    # goes to DEBUG; _start()/_watchdog() already log the
+                    # lifecycle transitions that matter at INFO separately
+                    self._logger.debug("webcamd: %s", line)
         except (OSError, ValueError, RuntimeError):
             # reading a closed/broken stdout pipe — the log pump must never
             # crash the watchdog thread
