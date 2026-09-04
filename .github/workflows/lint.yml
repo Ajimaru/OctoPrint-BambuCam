@@ -40,7 +40,7 @@ jobs:
 
       - # Setup Python and pip cache
         name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -64,7 +64,7 @@ jobs:
       - # Setup Node.js for ESLint/Prettier hooks
         name: Set up Node.js for hooks
         if: ${{ hashFiles('.pre-commit-config.yaml') != '' && hashFiles('package.json') != '' }}
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: "${{ env.NODE_VERSION }}"
 

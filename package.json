@@ -11,8 +11,8 @@
     "docs:js": "./scripts/generate-jsdocs.sh"
   },
   "devDependencies": {
-    "eslint": "10.7.0",
-    "globals": "17.7.0",
+    "eslint": "10.9.1",
+    "globals": "17.12.0",
     "jsdoc-to-markdown": "9.1.3",
     "prettier": "3.9.5"
   }
