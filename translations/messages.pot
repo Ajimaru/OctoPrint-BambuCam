@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: i18n@octoprint.org\n"
-"POT-Creation-Date: 2026-07-08 23:11+0200\n"
+"POT-Creation-Date: 2026-09-09 21:53+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,215 +17,215 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.16.0\n"
 
-#: octoprint_bambucam/static/js/BambuCam.js:266
+#: octoprint_bambucam/static/js/BambuCam.js:264
 msgid "selected"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:627
+#: octoprint_bambucam/static/js/BambuCam.js:625
 msgid "An operation is already running."
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:628
+#: octoprint_bambucam/static/js/BambuCam.js:626
 msgid "Not available while a print is running."
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:629
+#: octoprint_bambucam/static/js/BambuCam.js:627
 msgid "No valid files selected."
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:630
-#: octoprint_bambucam/static/js/BambuCam.js:1360
-#: octoprint_bambucam/static/js/BambuCam.js:1734
-#: octoprint_bambucam/static/js/BambuCam.js:1756
+#: octoprint_bambucam/static/js/BambuCam.js:628
+#: octoprint_bambucam/static/js/BambuCam.js:1358
+#: octoprint_bambucam/static/js/BambuCam.js:1732
+#: octoprint_bambucam/static/js/BambuCam.js:1755
 msgid "Request failed."
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:649
+#: octoprint_bambucam/static/js/BambuCam.js:647
 msgid "Converting timelapse"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:650
+#: octoprint_bambucam/static/js/BambuCam.js:648
 msgid ""
 "Re-encoding the video to .mp4. This can take a while and may slow down "
 "the printer/host until it is done."
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:679
+#: octoprint_bambucam/static/js/BambuCam.js:677
 msgid ""
 "Fetching raw footage from printer… This can take several minutes and may "
 "slow down the printer's touchscreen until it is done."
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:738
+#: octoprint_bambucam/static/js/BambuCam.js:736
 msgid ""
 "The following files were already copied and will be saved again as a "
 "numbered copy:"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:744
+#: octoprint_bambucam/static/js/BambuCam.js:742
 msgid "Copy them again?"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:746
+#: octoprint_bambucam/static/js/BambuCam.js:744
 msgid "Copy timelapses"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:748
+#: octoprint_bambucam/static/js/BambuCam.js:746
 msgid "Copy again"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:758
+#: octoprint_bambucam/static/js/BambuCam.js:756
 msgid "Move timelapses"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:769
+#: octoprint_bambucam/static/js/BambuCam.js:767
 msgid "Delete timelapses"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:787
+#: octoprint_bambucam/static/js/BambuCam.js:785
 msgid ""
 "This deletes the following files from the printer SD card and cannot be "
 "undone:"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:795
+#: octoprint_bambucam/static/js/BambuCam.js:793
 msgid "Proceed"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:819
+#: octoprint_bambucam/static/js/BambuCam.js:817
 msgid "copied"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:820
+#: octoprint_bambucam/static/js/BambuCam.js:818
 msgid "moved"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:821
+#: octoprint_bambucam/static/js/BambuCam.js:819
 msgid "deleted"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:822
-#: octoprint_bambucam/static/js/BambuCam.js:902
+#: octoprint_bambucam/static/js/BambuCam.js:820
+#: octoprint_bambucam/static/js/BambuCam.js:900
 msgid "skipped"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:825
-#: octoprint_bambucam/static/js/BambuCam.js:905
+#: octoprint_bambucam/static/js/BambuCam.js:823
+#: octoprint_bambucam/static/js/BambuCam.js:903
 msgid "Done."
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:879
+#: octoprint_bambucam/static/js/BambuCam.js:877
 msgid "Not enough free disk space"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:880
+#: octoprint_bambucam/static/js/BambuCam.js:878
 msgid "Invalid file name"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:881
+#: octoprint_bambucam/static/js/BambuCam.js:879
 msgid "Name conflict"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:882
+#: octoprint_bambucam/static/js/BambuCam.js:880
 msgid "Transfer failed"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:883
+#: octoprint_bambucam/static/js/BambuCam.js:881
 msgid "Connection lost"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:884
+#: octoprint_bambucam/static/js/BambuCam.js:882
 msgid "Conversion failed"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:886
+#: octoprint_bambucam/static/js/BambuCam.js:884
 #: octoprint_bambucam/templates/bambucam_raw.jinja2:104
 msgid "Failed"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:901
+#: octoprint_bambucam/static/js/BambuCam.js:899
 msgid "converted"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:939
+#: octoprint_bambucam/static/js/BambuCam.js:937
 #, python-format
 msgid ""
 "Print finished — automatically moving %d new timelapse(s) from the "
 "printer."
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:942
+#: octoprint_bambucam/static/js/BambuCam.js:940
 #, python-format
 msgid ""
 "Print finished — automatically copying %d new timelapse(s) from the "
 "printer."
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:956
+#: octoprint_bambucam/static/js/BambuCam.js:954
 msgid "Copied, but .avi→.mp4 conversion failed"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:959
+#: octoprint_bambucam/static/js/BambuCam.js:957
 msgid "Copied as .avi (ffmpeg not configured in OctoPrint)"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:962
+#: octoprint_bambucam/static/js/BambuCam.js:960
 msgid "Copied as .avi (conversion skipped while printing)"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:1196
+#: octoprint_bambucam/static/js/BambuCam.js:1194
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:11
 msgid "BambuCam"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:1197
+#: octoprint_bambucam/static/js/BambuCam.js:1195
 msgid "Could not switch the printer light."
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:1352
+#: octoprint_bambucam/static/js/BambuCam.js:1350
 msgid "Stream server not reachable. Is it running?"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:1565
+#: octoprint_bambucam/static/js/BambuCam.js:1563
 msgid "Printer is offline — reconnecting automatically."
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:1833
+#: octoprint_bambucam/static/js/BambuCam.js:1832
 msgid "Permanently delete this chunk and its slot pair? This cannot be undone."
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:1858
+#: octoprint_bambucam/static/js/BambuCam.js:1857
 msgid "Action failed: "
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:1940
+#: octoprint_bambucam/static/js/BambuCam.js:1939
 msgid "No new raw footage on the printer."
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:1943
+#: octoprint_bambucam/static/js/BambuCam.js:1940
 msgid "Raw footage fetched from printer."
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:1972
+#: octoprint_bambucam/static/js/BambuCam.js:1970
 #: octoprint_bambucam/templates/bambucam_raw.jinja2:90
 msgid "chunks"
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:1974
+#: octoprint_bambucam/static/js/BambuCam.js:1973
 msgid "Not enough disk space for the raw chunks."
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:1977
+#: octoprint_bambucam/static/js/BambuCam.js:1976
 msgid "Harvest cancelled."
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:1981
+#: octoprint_bambucam/static/js/BambuCam.js:1980
 msgid ""
 "Harvest incomplete — the printer's slow transfer was interrupted. Try "
 "\"Fetch from printer\" again."
 msgstr ""
 
-#: octoprint_bambucam/static/js/BambuCam.js:1987
+#: octoprint_bambucam/static/js/BambuCam.js:1986
 msgid "Chunks not secured — fetch from printer in the Raw Files tab."
 msgstr ""
 
@@ -1005,11 +1005,8 @@ msgid "by Igor Maculan, Christopher RYU, Shell Shrader and disconn3ct."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_tab.jinja2:4
-msgid "Timelapse"
-msgstr ""
-
 #: octoprint_bambucam/templates/bambucam_tab.jinja2:12
-msgid "BambuCam Timelapse"
+msgid "Timelapse"
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_tab.jinja2:14

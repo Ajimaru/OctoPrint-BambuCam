@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "BambuCam"
-version = "0.3.2dev1+37b33b1"
+version = "0.3.2dev2+224436d"
 description = "Bambu Lab camera stream integration for OctoPrint"
 authors = [
     {name = "Ajimaru", email = "ajimaru_gdr@pm.me"}

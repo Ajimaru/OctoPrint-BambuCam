@@ -299,17 +299,16 @@ class BambucamPlugin(
                 "template": "bambucam_webcam.jinja2",
                 "custom_bindings": True,
             },
+            # One tab holding both workflows as subtabs: the SD-card
+            # timelapses and the /ipcam raw footage. ``bambucam_raw.jinja2``
+            # is included by ``bambucam_tab.jinja2`` rather than registered on
+            # its own — a second registration would render the same template
+            # twice, and the copy outside this tab would get no view model
+            # (the bindings target ``#tab_plugin_bambucam``).
             {
                 "type": "tab",
-                "name": "BambuCam Timelapse",
+                "name": "BambuCam",
                 "template": "bambucam_tab.jinja2",
-                "custom_bindings": True,
-            },
-            {
-                "type": "tab",
-                "name": "BambuCam Raw Files",
-                "template": "bambucam_raw.jinja2",
-                "suffix": "_raw",
                 "custom_bindings": True,
             },
         ]
