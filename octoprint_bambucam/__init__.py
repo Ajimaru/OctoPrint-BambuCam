@@ -221,9 +221,6 @@ class BambucamPlugin(
             # a half-written file.
             "auto_sync_delay": 420,
             "auto_sync_action": "copy",
-            # TEMP: enable to log how long the A1 mini takes to render its
-            # timelapse after PRINT_DONE (plan §10.8 auto_sync_delay tuning).
-            "auto_sync_measure": False,
             # Map of SD-card video name -> real "YYYY-MM-DD HH:MM" print-end
             # time, captured from OctoPrint's own PrintDone event. The only
             # trustworthy date source for uncopied videos: the A1 mini stamps

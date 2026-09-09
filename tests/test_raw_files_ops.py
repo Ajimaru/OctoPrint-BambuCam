@@ -721,3 +721,69 @@ class TestPipelineLifecycle:
         groups = host._library().scan()
         groups[0]["has_thumb"] = True
         host._ensure_thumbs(groups)  # no ffmpeg invoked, no crash
+
+
+@pytest.mark.usefixtures("app")
+class TestInterruptedHarvestRecovery:
+    """Startup clears .part temps a killed harvest left behind."""
+
+    @staticmethod
+    def _write(path, size=40):
+        with open(path, "wb") as fh:
+            fh.write(b"x" * size)
+
+    def test_part_only_group_discarded(self, host):
+        """A group with nothing but a .part is removed entirely."""
+        pid = "2026-09-09_1817__cover"
+        group = host._render_paths().group_dir(pid)
+        os.makedirs(group, exist_ok=True)
+        self._write(os.path.join(group, "ipcam-record.1.avi.part"))
+        host._recover_interrupted_harvests()
+        assert not os.path.isdir(group)
+
+    def test_part_beside_chunk_only_clears_temp(self, host):
+        """A group holding a real chunk survives; only the .part goes."""
+        pid = "2026-09-09_1913__rocket"
+        _make_group(host, pid, ["a.avi"])
+        group = host._render_paths().group_dir(pid)
+        self._write(os.path.join(group, "ipcam-record.2.avi.part"))
+        host._recover_interrupted_harvests()
+        assert os.path.isdir(group)
+        assert os.path.isfile(os.path.join(group, "a.avi"))
+        assert not os.path.isfile(
+            os.path.join(group, "ipcam-record.2.avi.part")
+        )
+
+    def test_clean_group_untouched(self, host):
+        """A group without temps is left exactly as it is."""
+        pid = "2026-09-09_1913__rocket"
+        _make_group(host, pid, ["a.avi"])
+        group = host._render_paths().group_dir(pid)
+        before = sorted(os.listdir(group))
+        host._recover_interrupted_harvests()
+        assert sorted(os.listdir(group)) == before
+
+    def test_recovery_runs_on_pipeline_start(self, host):
+        """start_render_pipeline performs the recovery before scanning."""
+        pid = "2026-09-09_1817__cover"
+        group = host._render_paths().group_dir(pid)
+        os.makedirs(group, exist_ok=True)
+        self._write(os.path.join(group, "ipcam-record.1.avi.part"))
+        host.start_render_pipeline()
+        try:
+            assert not os.path.isdir(group)
+            # and the discarded group is not reported to the UI
+            assert host._library().groups() == []
+        finally:
+            host.stop_render_pipeline()
+
+    def test_forgets_discarded_group_from_cache(self, host):
+        """A cached group discarded at startup drops out of the library."""
+        pid = "2026-09-09_1817__cover"
+        group = host._render_paths().group_dir(pid)
+        os.makedirs(group, exist_ok=True)
+        self._write(os.path.join(group, "ipcam-record.1.avi.part"))
+        host._library().scan()
+        assert host._library().get(pid) is not None
+        host._recover_interrupted_harvests()
+        assert host._library().get(pid) is None

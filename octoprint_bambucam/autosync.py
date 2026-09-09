@@ -111,7 +111,6 @@ class AutoSyncMixin:
         elif event == Events.PRINT_DONE:
             self._record_print_date(payload)
             self._on_print_done(payload)
-            self._maybe_measure_render_delay()
 
     def note_own_movie(self, movie_path: str) -> None:
         """Record a movie path we are about to fire ``MovieDone`` for, so the
@@ -442,114 +441,6 @@ class AutoSyncMixin:
             self._logger.info("auto-sync list failed: %s", exc.reason)
             return []
         return [name for name in names if not self._already_copied(name)]
-
-    # ------------------------------------------------------------------
-    # TEMP measurement harness (plan §10.8 [LATER]: tune auto_sync_delay).
-    # Set ``auto_sync_measure`` true, run one print, then read the
-    # "render-delay measure" log lines. Remove this block once tuned.
-    # ------------------------------------------------------------------
-    _MEASURE_POLL_SECONDS = 5
-    _MEASURE_MAX_SECONDS = 1800  # give up after 30 min
-    # The A1 mini writes the .avi in bursts with multi-second pauses, so a
-    # short stable window mistakes a write-pause for "done". Require the size
-    # to hold across a long window (6 polls = 30 s) before declaring stable.
-    _MEASURE_STABLE_POLLS = 6  # size unchanged across N consecutive polls
-
-    def _maybe_measure_render_delay(self) -> None:  # pragma: no cover
-        if not self._settings.get_boolean(["auto_sync_measure"]):
-            return
-        t0 = time.monotonic()
-        threading.Thread(
-            target=self._measure_render_delay_worker, args=(t0,), daemon=True
-        ).start()
-
-    def _measure_render_delay_worker(  # pragma: no cover
-        self, t0: float
-    ) -> None:
-        log = self._logger
-        log.info("render-delay measure: PRINT_DONE at t0; polling SD card")
-        known = set()
-        try:
-            with self._make_ftp() as svc:
-                names = {f["name"] for f in svc.list_timelapses()}
-            known = names
-        except (FtpError, OSError) as exc:  # measurement must not crash
-            log.info("render-delay measure: initial list failed: %s", exc)
-
-        appeared = None  # name of the new file
-        t_appear = None
-        last_size = None
-        stable_count = 0
-        deadline = t0 + self._MEASURE_MAX_SECONDS
-
-        while time.monotonic() < deadline:
-            time.sleep(self._MEASURE_POLL_SECONDS)
-            try:
-                with self._make_ftp() as svc:
-                    files = {
-                        f["name"]: f.get("size") for f in svc.list_timelapses()
-                    }
-            except (FtpError, OSError) as exc:
-                log.info("render-delay measure: list failed: %s", exc)
-                continue
-
-            if appeared is None:
-                # The A1 mini's camera clock jumps between boots, so the new
-                # video rarely has the newest *name*. Don't sort by name —
-                # take whatever name is not in the PRINT_DONE snapshot. If
-                # several appear at once, pick the largest (the just-rendered
-                # full video, not a stale leftover).
-                fresh = set(files) - known
-                if fresh:
-                    appeared = max(fresh, key=lambda n: files.get(n) or 0)
-                    t_appear = time.monotonic()
-                    log.info(
-                        "render-delay measure: t1 new file %r APPEARED at "
-                        "+%.0fs (all new: %s)",
-                        appeared,
-                        t_appear - t0,
-                        sorted(fresh),
-                    )
-                continue
-
-            size = files.get(appeared)
-            if size != last_size:
-                log.info(
-                    "render-delay measure: %r size=%s at +%.0fs (growing)",
-                    appeared,
-                    size,
-                    time.monotonic() - t0,
-                )
-            if size is not None and size == last_size:
-                stable_count += 1
-                if stable_count >= self._MEASURE_STABLE_POLLS:
-                    t_now = time.monotonic()
-                    # the size last changed STABLE_POLLS polls ago
-                    stable_window = (
-                        self._MEASURE_STABLE_POLLS * self._MEASURE_POLL_SECONDS
-                    )
-                    t_done = t_now - stable_window  # when growth actually ended
-                    log.info(
-                        "render-delay measure: t2 %r STABLE at size=%s; "
-                        "growth ended +%.0fs from PRINT_DONE "
-                        "(+%.0fs after appearing). "
-                        "Suggested auto_sync_delay >= %d s",
-                        appeared,
-                        size,
-                        t_done - t0,
-                        t_done - (t_appear or t0),
-                        int(t_done - t0) + 30,  # 30 s safety margin
-                    )
-                    return
-            else:
-                stable_count = 0
-            last_size = size
-
-        log.info(
-            "render-delay measure: gave up after %ds (appeared=%s)",
-            self._MEASURE_MAX_SECONDS,
-            appeared,
-        )
 
     def _notify_autosync(self, count: int, action: str) -> None:
         self._plugin_manager.send_plugin_message(

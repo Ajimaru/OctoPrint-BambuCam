@@ -28,7 +28,12 @@ from octoprint.util import RepeatedTimer
 from . import render_presets
 from .ffprobe import FfprobeRunner, fallback_ffprobe_path
 from .gcode_thumb import gcode_thumb_source_by_stem
-from .raw_library import STATE_CHUNKS_READY, RawLibrary
+from .raw_library import (
+    CHUNK_EXTENSIONS,
+    PART_SUFFIX,
+    STATE_CHUNKS_READY,
+    RawLibrary,
+)
 from .render_paths import RenderPaths, is_contained, is_valid_print_id
 from .render_queue import RenderQueue
 from .render_registry import JobRegistry
@@ -138,8 +143,61 @@ class RawFilesOpsMixin:
             return
         timeout = self._settings.get_int(["stale_lock_timeout"]) or 86400
         self._queue().recover(timeout)
+        self._recover_interrupted_harvests()
         self._library().scan()
         self._start_retention_timer()
+
+    def _recover_interrupted_harvests(self) -> None:
+        """Clear ``.part`` temps left by a harvest that died mid-transfer.
+
+        A download interrupted by an OctoPrint restart or a crash leaves a
+        partial ``.part`` in its group. The bytes are worthless — the transfer
+        cannot be resumed across a restart — but they occupy real disk (a full
+        chunk is ~129 MB) and, without ``order.json``, describe a group that
+        can never be rendered. Drop the temps here and discard the group when
+        nothing but temps remain, so a restart starts clean instead of leaving
+        the leftovers for the next harvest of the same print-id, which may
+        never come.
+
+        Best-effort throughout: startup recovery must never block the plugin.
+        """
+        paths = self._render_paths()
+        base = paths.raw_chunks_dir
+        for print_id in _listdir_safe(base):
+            group = paths.group_dir(print_id)
+            if group is None or not is_contained(group, base):
+                continue
+            entries = _listdir_safe(group)
+            parts = [n for n in entries if n.endswith(PART_SUFFIX)]
+            if not parts:
+                continue
+            for name in parts:
+                path = os.path.join(group, name)
+                try:
+                    os.remove(path)
+                except OSError:
+                    continue
+            remaining = [
+                n for n in _listdir_safe(group) if not n.endswith(PART_SUFFIX)
+            ]
+            has_chunk = any(
+                n.lower().endswith(CHUNK_EXTENSIONS) for n in remaining
+            )
+            if has_chunk:
+                self._logger.info(
+                    "startup: cleared %d partial download(s) from %s",
+                    len(parts),
+                    print_id,
+                )
+                continue
+            shutil.rmtree(group, ignore_errors=True)
+            self._library().forget(print_id)
+            self._logger.info(
+                "startup: discarded interrupted harvest %s "
+                "(%d partial download(s), no usable chunk)",
+                print_id,
+                len(parts),
+            )
 
     def stop_render_pipeline(self) -> None:
         """Stop the render worker and retention timer if they were started."""

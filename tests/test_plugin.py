@@ -211,7 +211,6 @@ class TestGetSettingsDefaults:
             "auto_sync",
             "auto_sync_delay",
             "auto_sync_action",
-            "auto_sync_measure",
             "print_dates",
             "print_jobs",
             "render_enabled",
@@ -348,10 +347,23 @@ class TestIsTemplateAutoescaped:
 class TestGetTemplateConfigs:
     """get_template_configs() advertises OctoPrint template extensions."""
 
-    def test_four_templates(self, plugin):
-        """Settings, webcam, timelapse-tab and raw-tab are registered."""
+    def test_three_templates(self, plugin):
+        """Settings, webcam and the single tab are registered."""
         configs = plugin.get_template_configs()
-        assert len(configs) == 4
+        assert len(configs) == 3
+
+    def test_raw_template_is_not_registered_separately(self, plugin):
+        """The raw template is included by the tab, never registered twice.
+
+        A second registration would render ``bambucam_raw.jinja2`` outside
+        ``#tab_plugin_bambucam``, where the view model is not bound.
+        """
+        configs = plugin.get_template_configs()
+        templates = [c.get("template") for c in configs]
+        assert templates.count("bambucam_raw.jinja2") == 0
+        tabs = [c for c in configs if c["type"] == "tab"]
+        assert len(tabs) == 1
+        assert tabs[0]["name"] == "BambuCam"
 
     def test_settings_template(self, plugin):
         """'settings', 'webcam' and 'tab' template types are advertised."""
