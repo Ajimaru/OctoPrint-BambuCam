@@ -261,6 +261,30 @@ class BambucamPlugin(
     def get_settings_restricted_paths(self):
         return {"admin": [["access_code"]]}
 
+    # Settings keys that were dropped from the defaults but stay in an
+    # existing config.yaml, because OctoPrint persists what was once saved and
+    # never prunes it. Both backed checkboxes that no code ever read (removed
+    # in fd44a13 as "never-implemented"); the startup recovery they suggested
+    # now runs unconditionally in RawFilesOpsMixin.start_render_pipeline.
+    _OBSOLETE_SETTINGS = ("use_lockfiles", "recover_on_startup")
+
+    def get_settings_version(self):
+        return 1
+
+    def on_settings_migrate(self, target, current):
+        """Drop settings that no longer back anything (OctoPrint hook).
+
+        ``current`` is ``None`` for a config written before this plugin had a
+        settings version — which is every install carrying the dead keys.
+        """
+        if current is not None and current >= target:
+            return
+        for key in self._OBSOLETE_SETTINGS:
+            if self._settings.get([key]) is None:
+                continue
+            self._settings.remove([key])
+            self._logger.info("settings: removed obsolete key %r", key)
+
     def on_settings_save(self, data):
         old = {key: self._settings.get([key]) for key in DAEMON_SETTINGS}
         result = octoprint.plugin.SettingsPlugin.on_settings_save(self, data)

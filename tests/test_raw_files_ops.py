@@ -754,6 +754,46 @@ class TestInterruptedHarvestRecovery:
             os.path.join(group, "ipcam-record.2.avi.part")
         )
 
+    def test_empty_group_discarded(self, host):
+        """A group with no files at all is removed.
+
+        A harvest that failed before its first byte leaves no .part to spot it
+        by, and RawLibrary will not list it — so only this sweep can.
+        """
+        pid = "2026-07-05_1721__toolbox"
+        group = host._render_paths().group_dir(pid)
+        os.makedirs(group, exist_ok=True)
+        host._recover_interrupted_harvests()
+        assert not os.path.isdir(group)
+
+    def test_group_with_empty_order_discarded(self, host):
+        """A bare ``order.json: []`` with no chunks is removed."""
+        pid = "2026-07-05_1721__toolbox"
+        group = host._render_paths().group_dir(pid)
+        os.makedirs(group, exist_ok=True)
+        with open(
+            host._render_paths().order_file(pid), "w", encoding="utf-8"
+        ) as fh:
+            json.dump([], fh)
+        host._recover_interrupted_harvests()
+        assert not os.path.isdir(group)
+
+    def test_rendered_group_without_chunks_is_discarded(self, host):
+        """A rendered marker does not save a group that has no footage.
+
+        The chunks are what this directory exists to hold; the finished mp4
+        lives in OctoPrint's timelapse folder and is unaffected.
+        """
+        pid = "2026-09-09_1913__rocket"
+        group = host._render_paths().group_dir(pid)
+        os.makedirs(group, exist_ok=True)
+        with open(
+            host._render_paths().rendered_marker(pid), "w", encoding="utf-8"
+        ) as fh:
+            json.dump({"rendered_at": "2026-09-09 19:27"}, fh)
+        host._recover_interrupted_harvests()
+        assert not os.path.isdir(group)
+
     def test_clean_group_untouched(self, host):
         """A group without temps is left exactly as it is."""
         pid = "2026-09-09_1913__rocket"
@@ -787,3 +827,68 @@ class TestInterruptedHarvestRecovery:
         assert host._library().get(pid) is not None
         host._recover_interrupted_harvests()
         assert host._library().get(pid) is None
+
+
+@pytest.mark.usefixtures("app")
+class TestOrphanReconciliation:
+    """Startup drops thumbnails whose group no longer exists."""
+
+    @staticmethod
+    def _thumb(host, name):
+        path = os.path.join(host._render_paths().thumbs_dir, name)
+        with open(path, "wb") as fh:
+            fh.write(b"\xff\xd8\xff")
+        return path
+
+    def test_orphaned_thumb_removed(self, host):
+        """A thumbnail without a group is deleted."""
+        thumb = self._thumb(host, "2026-06-23_1432__gearbox.jpg")
+        host._reconcile_orphans()
+        assert not os.path.isfile(thumb)
+
+    def test_thumb_of_live_group_kept(self, host):
+        """A thumbnail whose group is on disk survives."""
+        pid = "2026-06-23_1432__gearbox"
+        _make_group(host, pid, ["a.avi"])
+        thumb = self._thumb(host, f"{pid}.jpg")
+        host._reconcile_orphans()
+        assert os.path.isfile(thumb)
+
+    def test_foreign_file_untouched(self, host):
+        """A file we never wrote is left alone, even when orphaned.
+
+        The name is not a valid print-id, so it is not ours to delete.
+        """
+        keep = self._thumb(host, "notes.jpg")
+        other = self._thumb(host, "README.txt")
+        host._reconcile_orphans()
+        assert os.path.isfile(keep)
+        assert os.path.isfile(other)
+
+    def test_runs_on_pipeline_start(self, host):
+        """start_render_pipeline performs the thumbnail reconciliation."""
+        thumb = self._thumb(host, "2026-06-23_1432__gearbox.jpg")
+        host.start_render_pipeline()
+        try:
+            assert not os.path.isfile(thumb)
+        finally:
+            host.stop_render_pipeline()
+
+    def test_discarded_harvest_takes_its_thumb(self, host):
+        """A group dropped as an interrupted harvest loses its thumbnail too.
+
+        Covers the ordering in start_render_pipeline: the harvest cleanup runs
+        first, so the reconciliation sees the group as already gone.
+        """
+        pid = "2026-09-09_1817__cover"
+        group = host._render_paths().group_dir(pid)
+        os.makedirs(group, exist_ok=True)
+        with open(os.path.join(group, "chunk.avi.part"), "wb") as fh:
+            fh.write(b"x" * 10)
+        thumb = self._thumb(host, f"{pid}.jpg")
+        host.start_render_pipeline()
+        try:
+            assert not os.path.isdir(group)
+            assert not os.path.isfile(thumb)
+        finally:
+            host.stop_render_pipeline()

@@ -1318,12 +1318,6 @@ msgstr "Licht an"
 msgid "Light off"
 msgstr "Licht aus"
 
-#~ msgid "Use lockfiles for cross-process safety"
-#~ msgstr "Lockfiles für prozessübergreifende Sicherheit verwenden"
-
-#~ msgid "Recover stale work/locks on startup"
-#~ msgstr "Verwaiste Arbeitsdateien/Locks beim Start aufräumen"
 
 #~ msgid "BambuCam Timelapse"
 #~ msgstr "BambuCam Zeitraffer"
-

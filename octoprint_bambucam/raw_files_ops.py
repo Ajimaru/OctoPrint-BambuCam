@@ -142,22 +142,60 @@ class RawFilesOpsMixin:
         if not self._settings.get_boolean(["render_enabled"]):
             return
         timeout = self._settings.get_int(["stale_lock_timeout"]) or 86400
-        self._queue().recover(timeout)
+        # Order matters: clearing interrupted harvests discards whole groups,
+        # so it runs before both reconciliations — otherwise they would judge
+        # jobs and thumbnails against groups that are about to disappear, and
+        # leave behind exactly the orphans they exist to remove.
         self._recover_interrupted_harvests()
+        self._queue().recover(timeout)
+        self._reconcile_orphans()
         self._library().scan()
         self._start_retention_timer()
 
+    def _reconcile_orphans(self) -> None:
+        """Remove thumbnails whose group is gone (plan §3.5).
+
+        Thumbnails are written per group but never removed with one — neither
+        the retention sweep, a user discard, nor a dropped interrupted harvest
+        touches ``thumbs/`` — so a JPEG survives every group it ever belonged
+        to. The registry side of the same reconciliation (jobs naming a group
+        that no longer exists) lives in :meth:`RenderQueue.recover`, which
+        owns the job registry.
+
+        Best-effort: startup recovery must never block the plugin.
+        """
+        paths = self._render_paths()
+        known = set(_listdir_safe(paths.raw_chunks_dir))
+        for entry in _listdir_safe(paths.thumbs_dir):
+            stem, ext = os.path.splitext(entry)
+            if ext.lower() != ".jpg" or stem in known:
+                continue
+            thumb = paths.thumb_file(stem)
+            # A name that is not a valid print-id yields None and is left
+            # alone: it was not written by us, so it is not ours to delete.
+            if thumb is None or not is_contained(thumb, paths.thumbs_dir):
+                continue
+            try:
+                os.remove(thumb)
+            except OSError:
+                continue
+            self._logger.info(
+                "startup: removed orphaned thumbnail for %s", stem
+            )
+
     def _recover_interrupted_harvests(self) -> None:
-        """Clear ``.part`` temps left by a harvest that died mid-transfer.
+        """Discard groups a failed harvest left without usable footage.
 
         A download interrupted by an OctoPrint restart or a crash leaves a
         partial ``.part`` in its group. The bytes are worthless — the transfer
         cannot be resumed across a restart — but they occupy real disk (a full
-        chunk is ~129 MB) and, without ``order.json``, describe a group that
-        can never be rendered. Drop the temps here and discard the group when
-        nothing but temps remain, so a restart starts clean instead of leaving
-        the leftovers for the next harvest of the same print-id, which may
-        never come.
+        chunk is ~129 MB). A harvest that failed before its first byte leaves
+        no ``.part`` at all, just an empty group or a bare ``order.json: []``.
+
+        Both end up the same way: a directory holding no chunk, which
+        ``RawLibrary`` correctly refuses to list. That makes it unreachable
+        from the tab, so nothing but this sweep can ever remove it. Clear the
+        temps, then discard any group left without a chunk.
 
         Best-effort throughout: startup recovery must never block the plugin.
         """
@@ -167,34 +205,30 @@ class RawFilesOpsMixin:
             group = paths.group_dir(print_id)
             if group is None or not is_contained(group, base):
                 continue
-            entries = _listdir_safe(group)
-            parts = [n for n in entries if n.endswith(PART_SUFFIX)]
-            if not parts:
-                continue
+            parts = [n for n in _listdir_safe(group) if n.endswith(PART_SUFFIX)]
             for name in parts:
-                path = os.path.join(group, name)
                 try:
-                    os.remove(path)
+                    os.remove(os.path.join(group, name))
                 except OSError:
                     continue
-            remaining = [
-                n for n in _listdir_safe(group) if not n.endswith(PART_SUFFIX)
-            ]
             has_chunk = any(
-                n.lower().endswith(CHUNK_EXTENSIONS) for n in remaining
+                n.lower().endswith(CHUNK_EXTENSIONS)
+                for n in _listdir_safe(group)
+                if not n.endswith(PART_SUFFIX)
             )
             if has_chunk:
-                self._logger.info(
-                    "startup: cleared %d partial download(s) from %s",
-                    len(parts),
-                    print_id,
-                )
+                if parts:
+                    self._logger.info(
+                        "startup: cleared %d partial download(s) from %s",
+                        len(parts),
+                        print_id,
+                    )
                 continue
             shutil.rmtree(group, ignore_errors=True)
             self._library().forget(print_id)
             self._logger.info(
-                "startup: discarded interrupted harvest %s "
-                "(%d partial download(s), no usable chunk)",
+                "startup: discarded harvest %s with no usable chunk "
+                "(%d partial download(s))",
                 print_id,
                 len(parts),
             )

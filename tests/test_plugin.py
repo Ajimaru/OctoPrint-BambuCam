@@ -832,3 +832,39 @@ class TestOnDaemonState:
                 "detail": {"returncode": 1},
             },
         )
+
+
+class TestSettingsMigration:
+    """on_settings_migrate prunes keys that no longer back anything."""
+
+    @staticmethod
+    def _plugin_with(plugin, present):
+        """Point the settings mock at a config holding ``present`` keys."""
+        plugin._settings.get = MagicMock(
+            side_effect=lambda k: True if k[0] in present else None
+        )
+        plugin._settings.remove = MagicMock()
+        return plugin
+
+    def test_removes_obsolete_keys(self, plugin):
+        """A config carrying the dead keys has them removed."""
+        p = self._plugin_with(plugin, {"use_lockfiles", "recover_on_startup"})
+        p.on_settings_migrate(p.get_settings_version(), None)
+        removed = [c.args[0][0] for c in p._settings.remove.call_args_list]
+        assert sorted(removed) == ["recover_on_startup", "use_lockfiles"]
+
+    def test_skips_keys_that_are_absent(self, plugin):
+        """A clean config triggers no removals."""
+        p = self._plugin_with(plugin, set())
+        p.on_settings_migrate(p.get_settings_version(), None)
+        p._settings.remove.assert_not_called()
+
+    def test_already_migrated_config_untouched(self, plugin):
+        """A config already at the target version is left alone."""
+        p = self._plugin_with(plugin, {"recover_on_startup"})
+        p.on_settings_migrate(p.get_settings_version(), 1)
+        p._settings.remove.assert_not_called()
+
+    def test_settings_version_is_positive(self, plugin):
+        """OctoPrint needs a version for the migrate hook to ever fire."""
+        assert plugin.get_settings_version() >= 1
