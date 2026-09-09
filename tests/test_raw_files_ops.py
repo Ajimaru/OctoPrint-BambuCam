@@ -892,3 +892,39 @@ class TestOrphanReconciliation:
             assert not os.path.isfile(thumb)
         finally:
             host.stop_render_pipeline()
+
+
+@pytest.mark.usefixtures("app")
+class TestPartRemovalContainment:
+    """The .part sink vets its path instead of trusting the caller."""
+
+    def test_removes_part_inside_the_group(self, host):
+        """A normal temp is still removed through the vetted path."""
+        pid = "2026-09-09_1817__cover"
+        _make_group(host, pid, ["a.avi"])
+        group = host._render_paths().group_dir(pid)
+        temp = os.path.join(group, "ipcam-record.1.avi.part")
+        with open(temp, "wb") as fh:
+            fh.write(b"x" * 10)
+        host._recover_interrupted_harvests()
+        assert not os.path.isfile(temp)
+        assert os.path.isfile(os.path.join(group, "a.avi"))
+
+    def test_symlinked_part_is_skipped_not_unlinked(self, host, tmp_path):
+        """A temp resolving outside the group is skipped entirely.
+
+        os.remove would only unlink the symlink itself, never its target, so
+        this was never a way out of the group. What the containment check
+        changes is that such an entry is now left alone rather than quietly
+        removed — and the target was never at risk either way.
+        """
+        outside = tmp_path / "precious.avi"
+        outside.write_bytes(b"keep me")
+        pid = "2026-09-09_1817__cover"
+        _make_group(host, pid, ["a.avi"])
+        group = host._render_paths().group_dir(pid)
+        link = os.path.join(group, "ipcam-record.1.avi.part")
+        os.symlink(str(outside), link)
+        host._recover_interrupted_harvests()
+        assert outside.exists(), "target outside the group must survive"
+        assert os.path.lexists(link), "out-of-group entry is skipped"

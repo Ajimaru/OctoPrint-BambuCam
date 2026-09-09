@@ -207,8 +207,15 @@ class RawFilesOpsMixin:
                 continue
             parts = [n for n in _listdir_safe(group) if n.endswith(PART_SUFFIX)]
             for name in parts:
+                # re-assert containment at the sink: os.listdir only ever
+                # yields basenames, so this cannot fail today, but the two
+                # neighbouring sinks vet their paths the same way and it keeps
+                # the guarantee local instead of implied by the caller
+                temp = paths.chunk_path(print_id, name)
+                if temp is None or not is_contained(temp, group):
+                    continue
                 try:
-                    os.remove(os.path.join(group, name))
+                    os.remove(temp)
                 except OSError:
                     continue
             has_chunk = any(
