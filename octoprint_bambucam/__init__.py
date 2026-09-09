@@ -221,9 +221,6 @@ class BambucamPlugin(
             # a half-written file.
             "auto_sync_delay": 420,
             "auto_sync_action": "copy",
-            # TEMP: enable to log how long the A1 mini takes to render its
-            # timelapse after PRINT_DONE (plan §10.8 auto_sync_delay tuning).
-            "auto_sync_measure": False,
             # Map of SD-card video name -> real "YYYY-MM-DD HH:MM" print-end
             # time, captured from OctoPrint's own PrintDone event. The only
             # trustworthy date source for uncopied videos: the A1 mini stamps
@@ -264,6 +261,30 @@ class BambucamPlugin(
     def get_settings_restricted_paths(self):
         return {"admin": [["access_code"]]}
 
+    # Settings keys that were dropped from the defaults but stay in an
+    # existing config.yaml, because OctoPrint persists what was once saved and
+    # never prunes it. Both backed checkboxes that no code ever read (removed
+    # in fd44a13 as "never-implemented"); the startup recovery they suggested
+    # now runs unconditionally in RawFilesOpsMixin.start_render_pipeline.
+    _OBSOLETE_SETTINGS = ("use_lockfiles", "recover_on_startup")
+
+    def get_settings_version(self):
+        return 1
+
+    def on_settings_migrate(self, target, current):
+        """Drop settings that no longer back anything (OctoPrint hook).
+
+        ``current`` is ``None`` for a config written before this plugin had a
+        settings version — which is every install carrying the dead keys.
+        """
+        if current is not None and current >= target:
+            return
+        for key in self._OBSOLETE_SETTINGS:
+            if self._settings.get([key]) is None:
+                continue
+            self._settings.remove([key])
+            self._logger.info("settings: removed obsolete key %r", key)
+
     def on_settings_save(self, data):
         old = {key: self._settings.get([key]) for key in DAEMON_SETTINGS}
         result = octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
@@ -302,17 +323,16 @@ class BambucamPlugin(
                 "template": "bambucam_webcam.jinja2",
                 "custom_bindings": True,
             },
+            # One tab holding both workflows as subtabs: the SD-card
+            # timelapses and the /ipcam raw footage. ``bambucam_raw.jinja2``
+            # is included by ``bambucam_tab.jinja2`` rather than registered on
+            # its own — a second registration would render the same template
+            # twice, and the copy outside this tab would get no view model
+            # (the bindings target ``#tab_plugin_bambucam``).
             {
                 "type": "tab",
-                "name": "BambuCam Timelapse",
+                "name": "BambuCam",
                 "template": "bambucam_tab.jinja2",
-                "custom_bindings": True,
-            },
-            {
-                "type": "tab",
-                "name": "BambuCam Raw Files",
-                "template": "bambucam_raw.jinja2",
-                "suffix": "_raw",
                 "custom_bindings": True,
             },
         ]

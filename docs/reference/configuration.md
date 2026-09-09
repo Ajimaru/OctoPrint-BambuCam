@@ -31,7 +31,6 @@ marked **↻** trigger a daemon restart when changed (they are members of
 | `auto_sync`           | `False`     |  —  | Pull a new timelapse automatically after a print.             |
 | `auto_sync_delay`     | `420`       |  —  | Seconds to wait after a print before checking the SD card.    |
 | `auto_sync_action`    | `"copy"`    |  —  | `"copy"` (keep on SD) or `"move"` (delete from SD).           |
-| `auto_sync_measure`   | `False`     |  —  | Debug: log render-delay after `PrintDone` (see note below).   |
 | `print_dates`         | `{}`        |  —  | Internal: SD video name → real print-end time (note below).   |
 | `print_jobs`          | `{}`        |  —  | Internal: SD video name → gcode job name (labels harvests).   |
 
@@ -63,9 +62,14 @@ marked **↻** trigger a daemon restart when changed (they are members of
     `PrintDone` and keep growing until **+370 s**; the printer often finishes
     rendering *during* the print, but not always. The default of `420` s
     (7 min) covers that worst case with margin. Syncing too early would copy a
-    half-written file. Enable `auto_sync_measure` to re-measure on your own
-    hardware — it logs `render-delay measure: … Suggested auto_sync_delay >= N s`
-    lines you can use to tune the value.
+    half-written file.
+
+    Note that the delay covers the *printer* finishing its write; waiting for
+    OctoPrint's own timelapse render is a separate concern, handled by the idle
+    gate in `autosync.py` (printer not printing, OctoPrint not rendering, no
+    manual FTP batch in flight). On a printer that never renders a timelapse
+    to its SD card the delay still matters — it bounds how long the `/ipcam`
+    ring buffer has to settle before a harvest reads it.
 
 !!! warning "Timelapse dates on the SD card can be wrong"
 

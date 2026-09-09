@@ -211,7 +211,6 @@ class TestGetSettingsDefaults:
             "auto_sync",
             "auto_sync_delay",
             "auto_sync_action",
-            "auto_sync_measure",
             "print_dates",
             "print_jobs",
             "render_enabled",
@@ -348,10 +347,23 @@ class TestIsTemplateAutoescaped:
 class TestGetTemplateConfigs:
     """get_template_configs() advertises OctoPrint template extensions."""
 
-    def test_four_templates(self, plugin):
-        """Settings, webcam, timelapse-tab and raw-tab are registered."""
+    def test_three_templates(self, plugin):
+        """Settings, webcam and the single tab are registered."""
         configs = plugin.get_template_configs()
-        assert len(configs) == 4
+        assert len(configs) == 3
+
+    def test_raw_template_is_not_registered_separately(self, plugin):
+        """The raw template is included by the tab, never registered twice.
+
+        A second registration would render ``bambucam_raw.jinja2`` outside
+        ``#tab_plugin_bambucam``, where the view model is not bound.
+        """
+        configs = plugin.get_template_configs()
+        templates = [c.get("template") for c in configs]
+        assert templates.count("bambucam_raw.jinja2") == 0
+        tabs = [c for c in configs if c["type"] == "tab"]
+        assert len(tabs) == 1
+        assert tabs[0]["name"] == "BambuCam"
 
     def test_settings_template(self, plugin):
         """'settings', 'webcam' and 'tab' template types are advertised."""
@@ -820,3 +832,39 @@ class TestOnDaemonState:
                 "detail": {"returncode": 1},
             },
         )
+
+
+class TestSettingsMigration:
+    """on_settings_migrate prunes keys that no longer back anything."""
+
+    @staticmethod
+    def _plugin_with(plugin, present):
+        """Point the settings mock at a config holding ``present`` keys."""
+        plugin._settings.get = MagicMock(
+            side_effect=lambda k: True if k[0] in present else None
+        )
+        plugin._settings.remove = MagicMock()
+        return plugin
+
+    def test_removes_obsolete_keys(self, plugin):
+        """A config carrying the dead keys has them removed."""
+        p = self._plugin_with(plugin, {"use_lockfiles", "recover_on_startup"})
+        p.on_settings_migrate(p.get_settings_version(), None)
+        removed = [c.args[0][0] for c in p._settings.remove.call_args_list]
+        assert sorted(removed) == ["recover_on_startup", "use_lockfiles"]
+
+    def test_skips_keys_that_are_absent(self, plugin):
+        """A clean config triggers no removals."""
+        p = self._plugin_with(plugin, set())
+        p.on_settings_migrate(p.get_settings_version(), None)
+        p._settings.remove.assert_not_called()
+
+    def test_already_migrated_config_untouched(self, plugin):
+        """A config already at the target version is left alone."""
+        p = self._plugin_with(plugin, {"recover_on_startup"})
+        p.on_settings_migrate(p.get_settings_version(), 1)
+        p._settings.remove.assert_not_called()
+
+    def test_settings_version_is_positive(self, plugin):
+        """OctoPrint needs a version for the migrate hook to ever fire."""
+        assert plugin.get_settings_version() >= 1

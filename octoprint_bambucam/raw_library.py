@@ -34,6 +34,10 @@ STATE_RENDERED = "rendered"
 
 CHUNK_EXTENSIONS = (".avi",)
 
+# Suffix ``ftp.download`` gives its in-progress temp file. A group holding
+# only these was interrupted mid-harvest (plan §3.3 ``incomplete``).
+PART_SUFFIX = ".part"
+
 
 class RawLibrary:
     """Scan and cache the harvested chunk groups under ``raw/chunks/``.
@@ -115,7 +119,14 @@ class RawLibrary:
         order = self._read_order(print_id)
         chunks = self._resolve_chunks(group_dir, order)
         if not chunks:
-            return None
+            # No finished chunk, but a ``.part`` means a harvest was cut short
+            # (an OctoPrint restart or a crash mid-transfer). Report the group
+            # as incomplete instead of hiding it, so the tab still offers
+            # re-harvest/discard rather than leaving an invisible directory
+            # holding on to the partial download.
+            chunks = _partial_chunks(group_dir)
+            if not chunks:
+                return None
         present = [c for c in chunks if c["present"]]
         complete = order is not None and all(c["present"] for c in chunks)
         marker = self._read_rendered_marker(print_id)
@@ -282,6 +293,39 @@ def _is_chunk(name: str) -> bool:
     if not name or name.startswith("._"):
         return False
     return name.lower().endswith(CHUNK_EXTENSIONS)
+
+
+def _partial_chunks(group_dir: str) -> list:
+    """Describe a cut-short harvest's ``.part`` temps as absent chunks.
+
+    The chunk name is the ``.part`` stem, so the UI names the footage the
+    harvest was reaching for. ``present`` is false throughout: the bytes on
+    disk are a partial transfer, never renderable, which keeps the group in
+    ``incomplete`` and out of the render queue.
+    """
+    try:
+        entries = sorted(os.listdir(group_dir))
+    except OSError:
+        return []
+    chunks = []
+    for name in entries:
+        if not name.endswith(PART_SUFFIX):
+            continue
+        stem = name[: -len(PART_SUFFIX)]
+        if not _is_chunk(stem):
+            continue
+        chunks.append(
+            {
+                "file": stem,
+                "slot": None,
+                "mdtm": None,
+                "included": True,
+                "present": False,
+                "size": None,
+                "partial_size": _safe_size(os.path.join(group_dir, name)),
+            }
+        )
+    return chunks
 
 
 def _safe_size(path: str) -> Optional[int]:

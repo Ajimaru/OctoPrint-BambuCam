@@ -248,3 +248,31 @@ into place; `jobs.json` is written tmp + `os.replace` + `fsync`; lockfiles use
 `O_CREAT|O_EXCL`; and startup recovery clears `work/`, reclaims stale locks, and
 fails any job a crash left mid-render. Render runs only while the printer is
 idle (default).
+
+### Startup recovery
+
+`start_render_pipeline()` (on `on_after_startup`) runs four steps, in order —
+each later step judges what the earlier ones leave behind, so the order is
+load-bearing:
+
+1. `_recover_interrupted_harvests()` — delete `.part` temps a harvest that
+   died mid-transfer left behind, then discard any group left holding no
+   chunk. An FTP transfer cannot resume across a restart, so the bytes are
+   worthless; a full chunk is ~129 MB. A harvest that failed before its first
+   byte leaves no `.part` at all — just an empty directory or a bare
+   `order.json: []` — and `RawLibrary` rightly refuses to list either, which
+   makes them unreachable from the tab; this sweep is the only thing that can
+   remove them.
+2. `RenderQueue.recover()` — clear `work/`, reclaim stale `*.lock` files, fail
+   jobs a crash left running, then drop jobs naming a group that is no longer
+   on disk. A stale job would otherwise keep `jobs_active_for()` true forever,
+   which blocks deleting the group.
+3. `_reconcile_orphans()` — remove `thumbs/*.jpg` with no group behind them.
+   Thumbnails are written per group but never removed with one, so they
+   accumulate. Files whose name is not a valid print-id are left alone.
+4. `RawLibrary.scan()` — rebuild the group list the tab shows.
+
+None of this is optional. Two settings once suggested otherwise
+(`recover_on_startup`, `use_lockfiles`); neither was ever read by any code, and
+both were removed in `fd44a13`. `on_settings_migrate` prunes them from configs
+that still carry the values.

@@ -125,15 +125,40 @@ class RenderQueue:
         """Startup recovery (plan §3.5/§12): clean work, locks, dead jobs.
 
         Removes everything under ``work/``, reclaims ``*.lock`` files older
-        than ``stale_lock_timeout`` seconds, and fails any job a crash left in
-        a running state (its group falls back to ``chunks_ready`` via the
-        scan). Re-queues nothing — the user restarts renders manually.
+        than ``stale_lock_timeout`` seconds, fails any job a crash left in a
+        running state (its group falls back to ``chunks_ready`` via the scan),
+        and drops jobs naming a group that is no longer on disk. Re-queues
+        nothing — the user restarts renders manually.
         """
         self._clear_work_dir()
         clear_stale_locks(self._paths.metadata_dir, stale_lock_timeout)
         clear_stale_locks(self._paths.work_dir, stale_lock_timeout)
         for jobid in self._registry.reconcile_active():
             self._logger.info("recovery: failed interrupted job %s", jobid)
+        self._drop_orphaned_jobs()
+
+    def _drop_orphaned_jobs(self) -> None:
+        """Forget jobs whose group has vanished from ``raw/chunks/``.
+
+        A group can disappear underneath a job: the retention sweep trashes
+        it, the user discards it, or startup clears an interrupted harvest.
+        The job left behind keeps :meth:`jobs_active_for` reporting the group
+        as busy — which blocks deleting it — and shows a queue row for footage
+        that is not there.
+        """
+        try:
+            known = set(os.listdir(self._paths.raw_chunks_dir))
+        except OSError:
+            return
+        for job in self._registry.all():
+            if job.get("print_id") in known:
+                continue
+            self._registry.remove(job["jobid"])
+            self._logger.info(
+                "recovery: dropped job %s for missing group %s",
+                job.get("jobid"),
+                job.get("print_id"),
+            )
 
     def jobs(self) -> list:
         """Return the active jobs (queued/running) for the UI queue table.

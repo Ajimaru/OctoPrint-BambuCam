@@ -64,10 +64,12 @@ viewmodel:
 - reloads the stream 2 s after settings are saved or the daemon reports
   `started`.
 
-## Timelapse tab
+## BambuCam tab
 
 Template: `bambucam_tab.jinja2`, bound to `#tab_plugin_bambucam`. Holds two
-subtabs, **Timelapse** and **Raw Files**.
+subtabs, **Timelapse** and **Raw Files**. This is the plugin's only tab —
+`bambucam_raw.jinja2` is included by this template rather than registered as a
+tab of its own, so it renders inside the bound element.
 
 ### Timelapse subtab
 

@@ -237,3 +237,65 @@ class TestCache:
         shutil.rmtree(paths.group_dir(pid))
         lib.refresh(pid)
         assert lib.get(pid) is None
+
+
+class TestInterruptedHarvest:
+    """A group holding only ``.part`` temps stays visible as incomplete."""
+
+    @staticmethod
+    def _make_part_group(paths, print_id, parts, chunks=()):
+        group = paths.group_dir(print_id)
+        os.makedirs(group, exist_ok=True)
+        for name in parts:
+            with open(os.path.join(group, name), "wb") as fh:
+                fh.write(b"x" * 50)
+        for name in chunks:
+            with open(os.path.join(group, name), "wb") as fh:
+                fh.write(b"x" * 100)
+        return group
+
+    def test_part_only_group_is_incomplete(self, logger, paths):
+        """Only a .part on disk: the group is listed, not dropped."""
+        pid = "2026-09-09_1817__cover"
+        self._make_part_group(paths, pid, ["ipcam-record.1.avi.part"])
+        lib = RawLibrary(logger, paths, FakeProbe())
+        groups = lib.scan()
+        assert len(groups) == 1
+        group = groups[0]
+        assert group["state"] == STATE_INCOMPLETE
+        assert group["chunk_count"] == 1
+        chunk = group["chunks"][0]
+        # named for the footage it was reaching for, but never present:
+        # partial bytes must not look renderable
+        assert chunk["file"] == "ipcam-record.1.avi"
+        assert chunk["present"] is False
+        assert chunk["partial_size"] == 50
+        # no present chunk to probe, so no aggregate metadata
+        assert group["size"] == 0
+        assert group["duration"] is None
+
+    def test_part_beside_finished_chunk_keeps_order(self, logger, paths):
+        """A finished chunk still drives the group; the .part is ignored."""
+        pid = "2026-09-09_1913__rocket"
+        self._make_part_group(
+            paths, pid, ["ipcam-record.2.avi.part"], chunks=["a.avi"]
+        )
+        _make_group(paths, pid, ["a.avi"])
+        lib = RawLibrary(logger, paths, FakeProbe())
+        group = lib.scan()[0]
+        assert group["state"] == STATE_CHUNKS_READY
+        assert [c["file"] for c in group["chunks"]] == ["a.avi"]
+
+    def test_empty_group_still_dropped(self, logger, paths):
+        """A group with neither chunk nor .part is not listed at all."""
+        pid = "2026-09-09_1817__cover"
+        os.makedirs(paths.group_dir(pid), exist_ok=True)
+        lib = RawLibrary(logger, paths, FakeProbe())
+        assert lib.scan() == []
+
+    def test_unrelated_part_is_not_a_chunk(self, logger, paths):
+        """A .part whose stem is not chunk-shaped does not create a group."""
+        pid = "2026-09-09_1817__cover"
+        self._make_part_group(paths, pid, ["notes.txt.part"])
+        lib = RawLibrary(logger, paths, FakeProbe())
+        assert lib.scan() == []

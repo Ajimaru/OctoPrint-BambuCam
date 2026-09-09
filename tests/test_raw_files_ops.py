@@ -721,3 +721,210 @@ class TestPipelineLifecycle:
         groups = host._library().scan()
         groups[0]["has_thumb"] = True
         host._ensure_thumbs(groups)  # no ffmpeg invoked, no crash
+
+
+@pytest.mark.usefixtures("app")
+class TestInterruptedHarvestRecovery:
+    """Startup clears .part temps a killed harvest left behind."""
+
+    @staticmethod
+    def _write(path, size=40):
+        with open(path, "wb") as fh:
+            fh.write(b"x" * size)
+
+    def test_part_only_group_discarded(self, host):
+        """A group with nothing but a .part is removed entirely."""
+        pid = "2026-09-09_1817__cover"
+        group = host._render_paths().group_dir(pid)
+        os.makedirs(group, exist_ok=True)
+        self._write(os.path.join(group, "ipcam-record.1.avi.part"))
+        host._recover_interrupted_harvests()
+        assert not os.path.isdir(group)
+
+    def test_part_beside_chunk_only_clears_temp(self, host):
+        """A group holding a real chunk survives; only the .part goes."""
+        pid = "2026-09-09_1913__rocket"
+        _make_group(host, pid, ["a.avi"])
+        group = host._render_paths().group_dir(pid)
+        self._write(os.path.join(group, "ipcam-record.2.avi.part"))
+        host._recover_interrupted_harvests()
+        assert os.path.isdir(group)
+        assert os.path.isfile(os.path.join(group, "a.avi"))
+        assert not os.path.isfile(
+            os.path.join(group, "ipcam-record.2.avi.part")
+        )
+
+    def test_empty_group_discarded(self, host):
+        """A group with no files at all is removed.
+
+        A harvest that failed before its first byte leaves no .part to spot it
+        by, and RawLibrary will not list it — so only this sweep can.
+        """
+        pid = "2026-07-05_1721__toolbox"
+        group = host._render_paths().group_dir(pid)
+        os.makedirs(group, exist_ok=True)
+        host._recover_interrupted_harvests()
+        assert not os.path.isdir(group)
+
+    def test_group_with_empty_order_discarded(self, host):
+        """A bare ``order.json: []`` with no chunks is removed."""
+        pid = "2026-07-05_1721__toolbox"
+        group = host._render_paths().group_dir(pid)
+        os.makedirs(group, exist_ok=True)
+        with open(
+            host._render_paths().order_file(pid), "w", encoding="utf-8"
+        ) as fh:
+            json.dump([], fh)
+        host._recover_interrupted_harvests()
+        assert not os.path.isdir(group)
+
+    def test_rendered_group_without_chunks_is_discarded(self, host):
+        """A rendered marker does not save a group that has no footage.
+
+        The chunks are what this directory exists to hold; the finished mp4
+        lives in OctoPrint's timelapse folder and is unaffected.
+        """
+        pid = "2026-09-09_1913__rocket"
+        group = host._render_paths().group_dir(pid)
+        os.makedirs(group, exist_ok=True)
+        with open(
+            host._render_paths().rendered_marker(pid), "w", encoding="utf-8"
+        ) as fh:
+            json.dump({"rendered_at": "2026-09-09 19:27"}, fh)
+        host._recover_interrupted_harvests()
+        assert not os.path.isdir(group)
+
+    def test_clean_group_untouched(self, host):
+        """A group without temps is left exactly as it is."""
+        pid = "2026-09-09_1913__rocket"
+        _make_group(host, pid, ["a.avi"])
+        group = host._render_paths().group_dir(pid)
+        before = sorted(os.listdir(group))
+        host._recover_interrupted_harvests()
+        assert sorted(os.listdir(group)) == before
+
+    def test_recovery_runs_on_pipeline_start(self, host):
+        """start_render_pipeline performs the recovery before scanning."""
+        pid = "2026-09-09_1817__cover"
+        group = host._render_paths().group_dir(pid)
+        os.makedirs(group, exist_ok=True)
+        self._write(os.path.join(group, "ipcam-record.1.avi.part"))
+        host.start_render_pipeline()
+        try:
+            assert not os.path.isdir(group)
+            # and the discarded group is not reported to the UI
+            assert host._library().groups() == []
+        finally:
+            host.stop_render_pipeline()
+
+    def test_forgets_discarded_group_from_cache(self, host):
+        """A cached group discarded at startup drops out of the library."""
+        pid = "2026-09-09_1817__cover"
+        group = host._render_paths().group_dir(pid)
+        os.makedirs(group, exist_ok=True)
+        self._write(os.path.join(group, "ipcam-record.1.avi.part"))
+        host._library().scan()
+        assert host._library().get(pid) is not None
+        host._recover_interrupted_harvests()
+        assert host._library().get(pid) is None
+
+
+@pytest.mark.usefixtures("app")
+class TestOrphanReconciliation:
+    """Startup drops thumbnails whose group no longer exists."""
+
+    @staticmethod
+    def _thumb(host, name):
+        path = os.path.join(host._render_paths().thumbs_dir, name)
+        with open(path, "wb") as fh:
+            fh.write(b"\xff\xd8\xff")
+        return path
+
+    def test_orphaned_thumb_removed(self, host):
+        """A thumbnail without a group is deleted."""
+        thumb = self._thumb(host, "2026-06-23_1432__gearbox.jpg")
+        host._reconcile_orphans()
+        assert not os.path.isfile(thumb)
+
+    def test_thumb_of_live_group_kept(self, host):
+        """A thumbnail whose group is on disk survives."""
+        pid = "2026-06-23_1432__gearbox"
+        _make_group(host, pid, ["a.avi"])
+        thumb = self._thumb(host, f"{pid}.jpg")
+        host._reconcile_orphans()
+        assert os.path.isfile(thumb)
+
+    def test_foreign_file_untouched(self, host):
+        """A file we never wrote is left alone, even when orphaned.
+
+        The name is not a valid print-id, so it is not ours to delete.
+        """
+        keep = self._thumb(host, "notes.jpg")
+        other = self._thumb(host, "README.txt")
+        host._reconcile_orphans()
+        assert os.path.isfile(keep)
+        assert os.path.isfile(other)
+
+    def test_runs_on_pipeline_start(self, host):
+        """start_render_pipeline performs the thumbnail reconciliation."""
+        thumb = self._thumb(host, "2026-06-23_1432__gearbox.jpg")
+        host.start_render_pipeline()
+        try:
+            assert not os.path.isfile(thumb)
+        finally:
+            host.stop_render_pipeline()
+
+    def test_discarded_harvest_takes_its_thumb(self, host):
+        """A group dropped as an interrupted harvest loses its thumbnail too.
+
+        Covers the ordering in start_render_pipeline: the harvest cleanup runs
+        first, so the reconciliation sees the group as already gone.
+        """
+        pid = "2026-09-09_1817__cover"
+        group = host._render_paths().group_dir(pid)
+        os.makedirs(group, exist_ok=True)
+        with open(os.path.join(group, "chunk.avi.part"), "wb") as fh:
+            fh.write(b"x" * 10)
+        thumb = self._thumb(host, f"{pid}.jpg")
+        host.start_render_pipeline()
+        try:
+            assert not os.path.isdir(group)
+            assert not os.path.isfile(thumb)
+        finally:
+            host.stop_render_pipeline()
+
+
+@pytest.mark.usefixtures("app")
+class TestPartRemovalContainment:
+    """The .part sink vets its path instead of trusting the caller."""
+
+    def test_removes_part_inside_the_group(self, host):
+        """A normal temp is still removed through the vetted path."""
+        pid = "2026-09-09_1817__cover"
+        _make_group(host, pid, ["a.avi"])
+        group = host._render_paths().group_dir(pid)
+        temp = os.path.join(group, "ipcam-record.1.avi.part")
+        with open(temp, "wb") as fh:
+            fh.write(b"x" * 10)
+        host._recover_interrupted_harvests()
+        assert not os.path.isfile(temp)
+        assert os.path.isfile(os.path.join(group, "a.avi"))
+
+    def test_symlinked_part_is_skipped_not_unlinked(self, host, tmp_path):
+        """A temp resolving outside the group is skipped entirely.
+
+        os.remove would only unlink the symlink itself, never its target, so
+        this was never a way out of the group. What the containment check
+        changes is that such an entry is now left alone rather than quietly
+        removed — and the target was never at risk either way.
+        """
+        outside = tmp_path / "precious.avi"
+        outside.write_bytes(b"keep me")
+        pid = "2026-09-09_1817__cover"
+        _make_group(host, pid, ["a.avi"])
+        group = host._render_paths().group_dir(pid)
+        link = os.path.join(group, "ipcam-record.1.avi.part")
+        os.symlink(str(outside), link)
+        host._recover_interrupted_harvests()
+        assert outside.exists(), "target outside the group must survive"
+        assert os.path.lexists(link), "out-of-group entry is skipped"

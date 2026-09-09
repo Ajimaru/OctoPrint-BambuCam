@@ -179,6 +179,13 @@ class TestCancel:
 class TestRecover:
     """recover() cleans work, locks and dead jobs."""
 
+    @staticmethod
+    def _make_group(paths, print_id):
+        """Create the group dir a surviving job must point at."""
+        group = paths.group_dir(print_id)
+        os.makedirs(group, exist_ok=True)
+        return group
+
     def test_recover_clears_work_and_fails_jobs(self, logger, paths):
         """Work scratch is removed and running jobs become failed."""
         scratch = os.path.join(paths.work_dir, "leftover.tmp")
@@ -186,12 +193,49 @@ class TestRecover:
             fh.write("x")
         subdir = os.path.join(paths.work_dir, "sub")
         os.makedirs(subdir)
+        pid = "2026-06-23_1432__gearbox"
+        self._make_group(paths, pid)
         q, _ = _make_queue(logger, paths)
-        q._registry.add({"jobid": "a", "print_id": "p", "state": "render"})
+        q._registry.add({"jobid": "a", "print_id": pid, "state": "render"})
         q.recover(86400)
         assert not os.path.exists(scratch)
         assert not os.path.exists(subdir)
         assert _job(q, "a")["state"] == JOB_FAILED
+
+    def test_recover_drops_job_for_missing_group(self, logger, paths):
+        """A job whose group is gone is forgotten, not just failed."""
+        q, _ = _make_queue(logger, paths)
+        q._registry.add(
+            {
+                "jobid": "a",
+                "print_id": "2026-06-23_1432__gearbox",
+                "state": "render",
+            }
+        )
+        q.recover(86400)
+        assert q._registry.get("a") is None
+
+    def test_recover_keeps_job_whose_group_exists(self, logger, paths):
+        """A job pointing at a real group survives the reconciliation."""
+        pid = "2026-06-23_1432__gearbox"
+        self._make_group(paths, pid)
+        q, _ = _make_queue(logger, paths)
+        q._registry.add({"jobid": "a", "print_id": pid, "state": JOB_QUEUED})
+        q.recover(86400)
+        assert q._registry.get("a") is not None
+
+    def test_dropped_job_releases_the_group(self, logger, paths):
+        """After the drop, the group is no longer reported as busy.
+
+        This is the point of the reconciliation: a stale job kept
+        jobs_active_for() true forever, which blocks deleting the group.
+        """
+        pid = "2026-06-23_1432__gearbox"
+        q, _ = _make_queue(logger, paths)
+        q._registry.add({"jobid": "a", "print_id": pid, "state": JOB_QUEUED})
+        assert q.jobs_active_for(pid) is True
+        q.recover(86400)
+        assert q.jobs_active_for(pid) is False
 
 
 class TestStartStop:
