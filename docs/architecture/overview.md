@@ -24,9 +24,10 @@ tab and timelapse tab.
 
 ## Mixins used
 
-`BambucamPlugin` combines OctoPrint mixins with four of its own
+`BambucamPlugin` combines OctoPrint mixins with five of its own
 (`TimelapseOpsMixin`, `AutoSyncMixin`, `IpcamSyncMixin`, `RawFilesOpsMixin` —
-the latter two are the [Raw Files render pipeline](render-pipeline.md)):
+the latter two are the [Raw Files render pipeline](render-pipeline.md) — and
+`AutoLedMixin` for the automatic chamber light):
 
 - `StartupPlugin` / `ShutdownPlugin` — start and stop the daemon with OctoPrint.
 - `SettingsPlugin` — defaults, restricted paths, restart-on-change.
@@ -34,7 +35,8 @@ the latter two are the [Raw Files render pipeline](render-pipeline.md)):
 - `AssetPlugin` — bundles `BambuCam.js` and `BambuCam.css`.
 - `SimpleApiPlugin` — all the GET/POST commands (see the
   [HTTP API](../reference/http-api.md)).
-- `EventHandlerPlugin` — drives auto-sync off OctoPrint's print/render events.
+- `EventHandlerPlugin` — drives auto-sync and the automatic chamber light
+  off OctoPrint's print/render events.
 - `WebcamProviderPlugin` — registers the webcam and serves snapshots.
 
 ## High-level flow
@@ -48,6 +50,7 @@ browser webcam tab ── MJPEG <img> ────┘
 settings/webcam ── simpleApi (restart / test / info / set_led) ─► plugin
 timelapse tab ── simpleApi (list / copy / move / convert) ─► FTPS + ffmpeg
 print ends ──► EventHandler ─► auto-sync (when idle) ─► FTPS + ffmpeg
+print starts/ends ──► EventHandler ─► auto-LED (after delay) ─► MQTT
 ```
 
 See [Daemon supervisor](daemon.md) for the process lifecycle and

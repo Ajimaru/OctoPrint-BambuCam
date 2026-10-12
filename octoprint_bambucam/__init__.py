@@ -23,6 +23,7 @@ from octoprint.webcams import WebcamNotAbleToTakeSnapshotException
 
 from . import bambu_connector, connector_led, render_presets
 from ._version import VERSION as _PLUGIN_VERSION
+from .auto_led import AutoLedMixin
 from .autosync import AutoSyncMixin
 from .daemon import WebcamdManager
 from .ftp import BambuTimelapseFtp, FtpError
@@ -71,6 +72,7 @@ class BambucamPlugin(
     AutoSyncMixin,
     IpcamSyncMixin,
     RawFilesOpsMixin,
+    AutoLedMixin,
     octoprint.plugin.StartupPlugin,
     octoprint.plugin.ShutdownPlugin,
     octoprint.plugin.SettingsPlugin,
@@ -114,6 +116,7 @@ class BambucamPlugin(
         self._init_autosync()
         self._init_ipcam_sync()
         self._init_raw_files()
+        self._init_auto_led()
 
     def initialize(self):
         self._manager = WebcamdManager(
@@ -171,18 +174,24 @@ class BambucamPlugin(
     def on_shutdown(self):
         self.stop_render_pipeline()
         self._stop_led_monitor()
+        self._cancel_auto_led()
         if self._manager is not None:
             self._manager.stop()
 
     def on_event(self, event, payload) -> None:
-        """Fan a printer event out to both post-print pipelines.
+        """Fan a printer event out to the post-print pipelines.
 
         ``AutoSyncMixin.on_event`` drives the render-gate flags and the serial
         post-print pipeline; ``on_ipcam_event`` snapshots the ``/ipcam``
-        baseline at ``PrintStarted`` for pipeline stage 3.
+        baseline at ``PrintStarted`` for pipeline stage 3; ``on_auto_led_event``
+        switches the chamber light on/off around the job.
+
+        Called explicitly rather than through ``super()`` because the mixins
+        each own the hook name; adding a consumer means adding a call here.
         """
         AutoSyncMixin.on_event(self, event, payload)
         self.on_ipcam_event(event, payload)
+        self.on_auto_led_event(event, payload)
 
     def get_settings_defaults(self):
         return {
@@ -221,6 +230,16 @@ class BambucamPlugin(
             # a half-written file.
             "auto_sync_delay": 420,
             "auto_sync_action": "copy",
+            # ── Automatic chamber light (opt-in) ───────────────────────────
+            # On at PrintStarted, off when the print ends (done/failed/
+            # cancelled). Delays are in seconds; 0 = act immediately. The
+            # light is forced off rather than restored to its pre-print state:
+            # that state is often unknown (``_led_state`` is None until the
+            # monitor reports), so "off" is the predictable rule. A manual
+            # toggle during the print wins for the rest of that print.
+            "auto_led": False,
+            "auto_led_on_delay": 0,
+            "auto_led_off_delay": 0,
             # Map of SD-card video name -> real "YYYY-MM-DD HH:MM" print-end
             # time, captured from OctoPrint's own PrintDone event. The only
             # trustworthy date source for uncopied videos: the A1 mini stamps
@@ -762,6 +781,37 @@ class BambucamPlugin(
         serial = self._effective_serial()
         return BambuMqttClient(self._logger, hostname, access_code, serial)
 
+    def _apply_led(self, on: bool) -> Optional[str]:
+        """Set the printer light, trying every transport in order.
+
+        Returns ``None`` on success or a failure ``reason`` string. Runs
+        synchronously on the calling thread and never raises, so the API
+        handler and the auto-LED worker can share it.
+
+        Order matters: the connector path reuses OctoPrint-BambuConnector's
+        already-open MQTT connection, because the printer's broker tolerates
+        only very few connections (see the ``connector_led`` module docstring).
+
+        The caller is responsible for holding ``_led_busy`` — this method does
+        no locking of its own.
+        """
+        try:
+            if not connector_led.set_chamber_light(
+                self._printer, on, self._logger
+            ):
+                monitor = self._led_monitor
+                if monitor is not None:
+                    monitor.set_chamber_light(on)
+                else:
+                    self._make_mqtt().set_chamber_light(on)
+            return None
+        except MqttError as exc:
+            return exc.reason
+        # never leak internals to the client
+        except Exception:  # noqa: BLE001  # pylint: disable=broad-except
+            self._logger.exception("LED command failed")
+            return "error"
+
     def _handle_set_led(self, on: bool) -> flask.Response:
         """Toggle the printer LED over MQTT, threaded and time-capped.
 
@@ -774,30 +824,19 @@ class BambucamPlugin(
                 return flask.jsonify(ok=False, reason="busy")
             self._led_busy = True
 
+        # A deliberate click during a print takes precedence over the
+        # auto-LED automation for the rest of that print.
+        self._note_manual_led()
+
         result: dict = {}
         done = threading.Event()
 
         def probe():
             try:
-                if connector_led.set_chamber_light(
-                    self._printer, on, self._logger
-                ):
-                    pass
-                else:
-                    monitor = self._led_monitor
-                    if monitor is not None:
-                        monitor.set_chamber_light(on)
-                    else:
-                        self._make_mqtt().set_chamber_light(on)
-                result["ok"] = True
-            except MqttError as exc:
-                result["ok"] = False
-                result["reason"] = exc.reason
-            # never leak internals to the client
-            except Exception:  # noqa: BLE001  # pylint: disable=broad-except
-                self._logger.exception("LED command failed")
-                result["ok"] = False
-                result["reason"] = "error"
+                reason = self._apply_led(on)
+                result["ok"] = reason is None
+                if reason is not None:
+                    result["reason"] = reason
             finally:
                 with self._led_lock:
                     self._led_busy = False

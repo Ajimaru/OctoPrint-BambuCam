@@ -57,6 +57,10 @@
   OctoPrint's built-in timelapse engine
 - 💡 **Light toggle** — Switch the printer's light on/off from a button over the
   live stream (requires Bambu Connector — see [Compatibility](#compatibility))
+- 🔆 **Automatic light** — Optionally switch the chamber light on when a print
+  starts and off again when it ends, each with a free delay in seconds. A
+  manual toggle during the print keeps the automation off the light until the
+  next one starts (see [Configuration](#configuration))
 - 🔌 **Offline-resilient** — When the printer is powered off the stream shows a
   "Printer Offline" frame and reconnects automatically once it is back, without
   tripping the crash limit
@@ -224,8 +228,26 @@ Use **Test connection** to verify both values before saving.
 | Auto-sync           | off         | Pull new timelapses automatically after a print.   |
 | Auto-pull action    | `copy`      | `copy` (keep on SD) or `move` (delete from SD).    |
 | Delay after print   | `420 s`     | Wait before checking the SD card for the new file. |
+| Automatic light     | off         | Light on at print start, off when it ends.         |
+| Light on delay      | `0 s`       | Wait after the print starts before switching on.   |
+| Light off delay     | `0 s`       | Wait after the print ends before switching off.    |
 
 <!-- markdownlint-enable MD013 -->
+
+<h4>Automatic printer light</h4>
+
+Found under **Webcam Image → Printer light**. With it on, the chamber light
+goes **on** when a print starts and **off** when it ends — finished, failed or
+cancelled. A **pause does not** switch it off, since you often pause
+specifically to look inside. Both delays are free in seconds (`0` =
+immediately): raise the on-delay to skip bed levelling and purging, raise the
+off-delay to keep the finished part lit for a while.
+
+A **manual toggle wins**: switching the light by hand on the live stream while
+a print is running keeps the automation off it until the next print starts. The
+light is switched off rather than restored to whatever it was before the print,
+because that state is often unknown. A pending switch is lost if OctoPrint
+restarts.
 
 </details>
 <!-- markdownlint-enable MD033 -->

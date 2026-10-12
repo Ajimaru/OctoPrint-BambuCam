@@ -30,6 +30,7 @@ A run below **90 %** coverage fails.
 | `tests/test_mqtt.py`            | MQTT light client and error classification.     |
 | `tests/test_transcode.py`       | ffmpeg `.avi` → `.mp4` transcoder.              |
 | `tests/test_autosync.py`        | After-print auto-sync gating.                   |
+| `tests/test_auto_led.py`        | Automatic chamber light around a print.         |
 | `tests/test_bambu_connector.py` | Connector auto-config discovery.                |
 
 ## Mocking strategy

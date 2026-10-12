@@ -170,6 +170,62 @@ class TestSetLed:
         assert out == {"ok": True}
         assert sent == [True]
 
+    def test_marks_manual_override_during_a_print(self, plugin, app):
+        """A click while printing takes precedence over the auto-LED path."""
+
+        class FakeMqtt:
+            def set_chamber_light(self, on):
+                pass
+
+        plugin._make_mqtt = FakeMqtt
+        plugin._printer.is_printing = MagicMock(return_value=True)
+        _json(plugin, "set_led", {"on": True}, app)
+        assert plugin._auto_led_overridden is True
+
+    def test_no_manual_override_while_idle(self, plugin, app):
+        """A click while idle must not affect the next print."""
+
+        class FakeMqtt:
+            def set_chamber_light(self, on):
+                pass
+
+        plugin._make_mqtt = FakeMqtt
+        _json(plugin, "set_led", {"on": True}, app)
+        assert plugin._auto_led_overridden is False
+
+
+class TestApplyLed:
+    """The transport seam shared by the API handler and the auto-LED path."""
+
+    def test_returns_none_on_success(self, plugin):
+        class FakeMqtt:
+            def set_chamber_light(self, on):
+                pass
+
+        plugin._make_mqtt = FakeMqtt
+        plugin._led_monitor = None
+        assert plugin._apply_led(True) is None
+
+    def test_returns_mqtt_reason(self, plugin):
+        from octoprint_bambucam.mqtt import MqttError
+
+        class FakeMqtt:
+            def set_chamber_light(self, on):
+                raise MqttError("unreachable")
+
+        plugin._make_mqtt = FakeMqtt
+        plugin._led_monitor = None
+        assert plugin._apply_led(True) == "unreachable"
+
+    def test_returns_error_on_unexpected(self, plugin):
+        class FakeMqtt:
+            def set_chamber_light(self, on):
+                raise RuntimeError("boom")
+
+        plugin._make_mqtt = FakeMqtt
+        plugin._led_monitor = None
+        assert plugin._apply_led(True) == "error"
+
 
 class TestLedMonitor:
     def test_start_uses_connector_when_available(self, plugin, app):

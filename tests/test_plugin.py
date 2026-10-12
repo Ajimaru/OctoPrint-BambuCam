@@ -211,6 +211,9 @@ class TestGetSettingsDefaults:
             "auto_sync",
             "auto_sync_delay",
             "auto_sync_action",
+            "auto_led",
+            "auto_led_on_delay",
+            "auto_led_off_delay",
             "print_dates",
             "print_jobs",
             "render_enabled",
@@ -240,6 +243,20 @@ class TestGetSettingsDefaults:
         assert d["override_resolution"] is False
         assert d["width"] == 1920
         assert d["height"] == 1080
+        assert d["auto_led"] is False
+        assert d["auto_led_on_delay"] == 0
+        assert d["auto_led_off_delay"] == 0
+
+    def test_auto_led_keys_do_not_restart_the_daemon(self):
+        """The auto-LED keys must stay out of DAEMON_SETTINGS.
+
+        They do not affect webcamd's command line; listing them would restart
+        the stream on every settings save.
+        """
+        from octoprint_bambucam import DAEMON_SETTINGS
+
+        for key in ("auto_led", "auto_led_on_delay", "auto_led_off_delay"):
+            assert key not in DAEMON_SETTINGS
 
 
 # ---------------------------------------------------------------------------
@@ -868,3 +885,42 @@ class TestSettingsMigration:
     def test_settings_version_is_positive(self, plugin):
         """OctoPrint needs a version for the migrate hook to ever fire."""
         assert plugin.get_settings_version() >= 1
+
+
+# ---------------------------------------------------------------------------
+# event fan-out
+# ---------------------------------------------------------------------------
+
+
+class TestOnEventFanOut:
+    """``on_event`` must reach every mixin that consumes printer events."""
+
+    def test_all_consumers_are_called(self, plugin, monkeypatch):
+        """Each consumer gets the event exactly once.
+
+        Guards the explicit unbound-call pattern: the mixins each own a
+        differently named hook, so a future ``super()`` refactor would silently
+        drop consumers.
+        """
+        from octoprint_bambucam import AutoSyncMixin
+
+        calls = []
+        monkeypatch.setattr(
+            AutoSyncMixin,
+            "on_event",
+            lambda _self, e, p: calls.append(("autosync", e)),
+        )
+        monkeypatch.setattr(
+            type(plugin),
+            "on_ipcam_event",
+            lambda _self, e, p: calls.append(("ipcam", e)),
+        )
+        monkeypatch.setattr(
+            type(plugin),
+            "on_auto_led_event",
+            lambda _self, e, p: calls.append(("auto_led", e)),
+        )
+
+        plugin.on_event("PrintStarted", {})
+
+        assert [name for name, _ in calls] == ["autosync", "ipcam", "auto_led"]
