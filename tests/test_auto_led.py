@@ -49,6 +49,7 @@ class _Host(AutoLedMixin):
         self.applied = []  # recorded _apply_led(on) calls
         self.apply_result = apply_result  # None = success, else a reason
         self.apply_error = None  # exception to raise instead
+        self.led_state = None  # what _current_led_state() reports
         self.sent = []  # pushed plugin messages
         self._init_auto_led()
 
@@ -79,6 +80,11 @@ class _Host(AutoLedMixin):
         if self.apply_error is not None:
             raise self.apply_error
         return self.apply_result
+
+    # dep from BambucamPlugin
+    def _current_led_state(self):  # type: ignore[override]
+        """Report the configured stand-in for the printer's real state."""
+        return self.led_state
 
 
 def _settings(**over):
@@ -374,3 +380,60 @@ def test_apply_led_exception_is_contained():
     assert _await(lambda: host._auto_led_cancel is None)
     assert not host.sent
     assert host._led_busy is False
+
+
+# ── light switched at the printer's own display ───────────────────────────
+
+
+def test_switch_off_skipped_when_light_already_off():
+    """A light switched off at the printer is left alone.
+
+    Such a toggle never reaches `set_led`, so the override flag stays unset —
+    the real state is the only evidence that the operator already chose.
+    """
+    host = _Host(_settings())
+    host.led_state = False
+    host.on_auto_led_event(Events.PRINT_DONE, {})
+    assert not _await(lambda: host.applied, timeout=0.3)
+    assert not host.sent
+    assert host._led_busy is False
+
+
+def test_switch_off_proceeds_when_light_is_on():
+    """A light that is still on is switched off as usual."""
+    host = _Host(_settings())
+    host.led_state = True
+    host.on_auto_led_event(Events.PRINT_DONE, {})
+    assert _await(lambda: host.applied == [False])
+
+
+def test_switch_off_proceeds_when_state_unknown():
+    """An unknown state is no evidence, so the switch still happens."""
+    host = _Host(_settings())
+    host.led_state = None
+    host.on_auto_led_event(Events.PRINT_DONE, {})
+    assert _await(lambda: host.applied == [False])
+
+
+def test_switch_on_ignores_the_real_state():
+    """The switch on is unconditional — a stale read must not skip it."""
+    host = _Host(_settings())
+    host.led_state = True  # claims it is already on
+    host.on_auto_led_event(Events.PRINT_STARTED, {})
+    assert _await(lambda: host.applied == [True])
+
+
+def test_wanted_guard_only_reads_for_switch_off():
+    """The live read costs an MQTT round-trip, so skip it when switching on."""
+    host = _Host(_settings())
+    reads = []
+
+    def counting_read():
+        reads.append(1)
+        return False
+
+    host._current_led_state = counting_read
+    assert host._auto_led_wanted(True) is True
+    assert not reads
+    assert host._auto_led_wanted(False) is False
+    assert len(reads) == 1

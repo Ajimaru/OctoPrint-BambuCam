@@ -445,12 +445,7 @@ class BambucamPlugin(
         status = self._manager.status()
         status["stream_url"] = self._stream_url()
         status["led_available"] = bool(self._effective_serial())
-        connector_state = connector_led.current_state(
-            self._printer, self._logger
-        )
-        status["led_on"] = (
-            connector_state if connector_state is not None else self._led_state
-        )
+        status["led_on"] = self._current_led_state()
         return flask.jsonify(status)
 
     def _handle_thumbnail(self, name) -> flask.Response:
@@ -780,6 +775,17 @@ class BambucamPlugin(
         hostname, access_code = self._effective_credentials()
         serial = self._effective_serial()
         return BambuMqttClient(self._logger, hostname, access_code, serial)
+
+    def _current_led_state(self) -> Optional[bool]:
+        """The printer's real light state, or ``None`` when unknown.
+
+        Prefers BambuConnector's live read (``bpm.BambuPrinter.light_state``),
+        which reflects the firmware itself — including a light switched at the
+        printer's own display, which never reaches our API. Falls back to the
+        monitor's last observation, and is ``None`` when neither knows.
+        """
+        state = connector_led.current_state(self._printer, self._logger)
+        return state if state is not None else self._led_state
 
     def _apply_led(self, on: bool) -> Optional[str]:
         """Set the printer light, trying every transport in order.

@@ -47,7 +47,11 @@ marked **↻** trigger a daemon restart when changed (they are members of
 
     A **manual toggle wins**: switching the light by hand on the live stream
     while a print is running keeps the automation off it until the next print
-    starts. The light is driven over the same path as the manual button
+    starts. A light switched off **at the printer's display** never reaches our
+    API, so the switch-off instead checks the real state
+    (`bpm.BambuPrinter.light_state` via BambuConnector) and skips an
+    already-off light. An unknown state is no evidence, so the switch then
+    proceeds. The light is driven over the same path as the manual button
     (BambuConnector's open MQTT connection, with a direct connection as
     fallback), sharing its busy flag so the two never open two sockets on the
     printer's broker. A pending switch is lost if OctoPrint restarts.

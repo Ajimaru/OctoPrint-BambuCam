@@ -244,10 +244,12 @@ immediately): raise the on-delay to skip bed levelling and purging, raise the
 off-delay to keep the finished part lit for a while.
 
 A **manual toggle wins**: switching the light by hand on the live stream while
-a print is running keeps the automation off it until the next print starts. The
-light is switched off rather than restored to whatever it was before the print,
-because that state is often unknown. A pending switch is lost if OctoPrint
-restarts.
+a print is running keeps the automation off it until the next print starts.
+Switching it off **at the printer's own display** also counts — before the
+automation switches off, it checks the real state and leaves an already-off
+light alone. The light is switched off rather than restored to whatever it was
+before the print, because that state is often unknown. A pending switch is lost
+if OctoPrint restarts.
 
 </details>
 <!-- markdownlint-enable MD033 -->

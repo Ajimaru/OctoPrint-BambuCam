@@ -227,6 +227,31 @@ class TestApplyLed:
         assert plugin._apply_led(True) == "error"
 
 
+class TestCurrentLedState:
+    """The live read that also sees a light switched at the printer."""
+
+    def test_prefers_the_connector_read(self, plugin):
+        plugin._led_state = False
+        with patch(
+            "octoprint_bambucam.connector_led.current_state", return_value=True
+        ):
+            assert plugin._current_led_state() is True
+
+    def test_falls_back_to_the_monitor_observation(self, plugin):
+        plugin._led_state = True
+        with patch(
+            "octoprint_bambucam.connector_led.current_state", return_value=None
+        ):
+            assert plugin._current_led_state() is True
+
+    def test_none_when_nothing_knows(self, plugin):
+        plugin._led_state = None
+        with patch(
+            "octoprint_bambucam.connector_led.current_state", return_value=None
+        ):
+            assert plugin._current_led_state() is None
+
+
 class TestLedMonitor:
     def test_start_uses_connector_when_available(self, plugin, app):
         with (

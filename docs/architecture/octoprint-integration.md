@@ -45,7 +45,8 @@ pause is not an end. The switch runs on a daemon thread — the event handler
 only arms it, so OctoPrint's event thread is never blocked — and shares the
 manual toggle's busy flag, because the printer's MQTT broker tolerates very few
 connections. A manual toggle during a print takes precedence until the next
-`PrintStarted`. See [Configuration](../reference/configuration.md).
+`PrintStarted`; before switching off it also reads the printer's real state, so
+a light switched at the printer's own display is left alone. See [Configuration](../reference/configuration.md).
 
 It also records **real print dates**. On `PrintStarted` it snapshots the SD
 card's videos (name → size); on `PrintDone` it waits for the printer to finish

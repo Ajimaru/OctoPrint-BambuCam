@@ -68,6 +68,7 @@ class AutoLedMixin:
     # Provided by BambucamPlugin / sibling mixins; declared callable-typed so
     # the type checker sees them without shadowing the real implementations.
     _apply_led: "Callable[[bool], Optional[str]]"
+    _current_led_state: "Callable[[], Optional[bool]]"
     _print_active: "Callable[[], bool]"
     _led_lock: threading.Lock
     _led_busy: bool
@@ -94,10 +95,13 @@ class AutoLedMixin:
             self._schedule_auto_led(True, ["auto_led_on_delay"])
         elif event in _PRINT_END_EVENTS:
             if self._auto_led_overridden:
-                self._logger.debug(
-                    "auto-LED: light was toggled by hand, leaving it as it is"
+                self._logger.info(
+                    "auto-LED: %s, but the light was toggled by hand "
+                    "- leaving it as it is",
+                    event,
                 )
                 return
+            self._logger.debug("auto-LED: %s, arming the switch off", event)
             self._schedule_auto_led(False, ["auto_led_off_delay"])
 
     def _note_manual_led(self) -> None:
@@ -149,7 +153,16 @@ class AutoLedMixin:
     ) -> None:
         """Wait out the delay, then drive the light (unless superseded)."""
         try:
+            self._logger.debug(
+                "auto-LED: switch %s armed, waiting %ss",
+                "on" if on else "off",
+                delay,
+            )
             if cancel.wait(timeout=delay):
+                self._logger.debug(
+                    "auto-LED: switch %s superseded during its delay",
+                    "on" if on else "off",
+                )
                 return
             if not self._claim_led(cancel):
                 return
@@ -160,6 +173,8 @@ class AutoLedMixin:
                         "auto-LED: light was toggled by hand, "
                         "skipping the switch off"
                     )
+                    return
+                if not self._auto_led_wanted(on):
                     return
                 reason = self._apply_led(on)
             finally:
@@ -183,6 +198,33 @@ class AutoLedMixin:
             with self._auto_led_lock:
                 if self._auto_led_cancel is cancel:
                     self._auto_led_cancel = None
+
+    def _auto_led_wanted(self, on: bool) -> bool:
+        """Whether the pending switch should still go through.
+
+        Only the switch **off** is guarded. Someone who turned the light off at
+        the printer's own display never reaches ``set_led``, so the override
+        flag stays unset — the real state is the only evidence we have. When it
+        already reads off, the automation leaves it alone, so an operator's
+        choice is never undone a second time.
+
+        The switch on is unconditional: a light that is already on makes the
+        command a no-op on the printer anyway, and skipping it would turn a
+        stale read into a missed switch.
+
+        An unknown state (``None``) means BambuConnector is not the active
+        connection. It is not evidence of anything, so the switch proceeds.
+        """
+        if on:
+            return True
+        state = self._current_led_state()
+        if state is False:
+            self._logger.info(
+                "auto-LED: light is already off (switched at the printer?), "
+                "leaving it alone"
+            )
+            return False
+        return True
 
     def _claim_led(self, cancel: threading.Event) -> bool:
         """Take the shared LED busy flag, waiting out a manual command.
