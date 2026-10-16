@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: i18n@octoprint.org\n"
-"POT-Creation-Date: 2026-09-09 21:53+0200\n"
+"POT-Creation-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -46,8 +46,8 @@ msgstr ""
 
 #: octoprint_bambucam/static/js/BambuCam.js:648
 msgid ""
-"Re-encoding the video to .mp4. This can take a while and may slow down "
-"the printer/host until it is done."
+"Re-encoding the video to .mp4. This can take a while and may slow down the "
+"printer/host until it is done."
 msgstr ""
 
 #: octoprint_bambucam/static/js/BambuCam.js:677
@@ -150,15 +150,13 @@ msgstr ""
 #: octoprint_bambucam/static/js/BambuCam.js:937
 #, python-format
 msgid ""
-"Print finished — automatically moving %d new timelapse(s) from the "
-"printer."
+"Print finished — automatically moving %d new timelapse(s) from the printer."
 msgstr ""
 
 #: octoprint_bambucam/static/js/BambuCam.js:940
 #, python-format
 msgid ""
-"Print finished — automatically copying %d new timelapse(s) from the "
-"printer."
+"Print finished — automatically copying %d new timelapse(s) from the printer."
 msgstr ""
 
 #: octoprint_bambucam/static/js/BambuCam.js:954
@@ -191,7 +189,8 @@ msgid "Printer is offline — reconnecting automatically."
 msgstr ""
 
 #: octoprint_bambucam/static/js/BambuCam.js:1832
-msgid "Permanently delete this chunk and its slot pair? This cannot be undone."
+msgid ""
+"Permanently delete this chunk and its slot pair? This cannot be undone."
 msgstr ""
 
 #: octoprint_bambucam/static/js/BambuCam.js:1857
@@ -236,9 +235,9 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_raw.jinja2:3
 msgid ""
-"Raw high-res timelapse footage harvested from the printer's /ipcam "
-"buffer, grouped per print. Concat and render a group into a finished clip"
-" — it then appears in OctoPrint's native Timelapse tab."
+"Raw high-res timelapse footage harvested from the printer's /ipcam buffer, "
+"grouped per print. Concat and render a group into a finished clip — it then "
+"appears in OctoPrint's native Timelapse tab."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_raw.jinja2:10
@@ -387,9 +386,8 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:17
 msgid ""
-"Master switch: starts/stops the plugin's local stream server. When off, "
-"live view, snapshots and OctoPrint timelapse captures via this plugin "
-"stop."
+"Master switch: starts/stops the plugin's local stream server. When off, live"
+" view, snapshots and OctoPrint timelapse captures via this plugin stop."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:23
@@ -430,14 +428,14 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:51
 msgid ""
-"A Bambu Connector connection was found — \"Auto\" reuses its printer IP "
-"and access code."
+"A Bambu Connector connection was found — \"Auto\" reuses its printer IP and "
+"access code."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:53
 msgid ""
-"Set up a Bambu printer connection with OctoPrint-BambuConnector to enable"
-" automatic configuration."
+"Set up a Bambu printer connection with OctoPrint-BambuConnector to enable "
+"automatic configuration."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:58
@@ -446,8 +444,8 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:58
 msgid ""
-"IP address of your Bambu Lab printer (P1/A1 series, LAN mode). The X1 "
-"series is not supported."
+"IP address of your Bambu Lab printer (P1/A1 series, LAN mode). The X1 series"
+" is not supported."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:69
@@ -500,8 +498,8 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:108
 msgid ""
-"With 127.0.0.1 snapshots and timelapse work, but the browser live view "
-"does not (unless a reverse proxy + stream URL override is set)."
+"With 127.0.0.1 snapshots and timelapse work, but the browser live view does "
+"not (unless a reverse proxy + stream URL override is set)."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:113
@@ -514,9 +512,9 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:120
 msgid ""
-"The stream server has no authentication. With 0.0.0.0 anyone on your "
-"network can watch the camera. Required for the live view in the browser "
-"unless you set a stream URL override below."
+"The stream server has no authentication. With 0.0.0.0 anyone on your network"
+" can watch the camera. Required for the live view in the browser unless you "
+"set a stream URL override below."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:130
@@ -533,8 +531,8 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:152
 msgid ""
-"Optional. Use this if the stream is served through a reverse proxy. Leave"
-" empty to use the port above directly."
+"Optional. Use this if the stream is served through a reverse proxy. Leave "
+"empty to use the port above directly."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:165
@@ -559,9 +557,9 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:190
 msgid ""
-"Off by default: the printer dictates the frame size. Only enable to force"
-" a width/height — a value that doesn't match the printer's stream can "
-"corrupt the image."
+"Off by default: the printer dictates the frame size. Only enable to force a "
+"width/height — a value that doesn't match the printer's stream can corrupt "
+"the image."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:196
@@ -603,8 +601,8 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:246
 msgid ""
-"Draws a small red dot on every other frame so you can tell at a glance "
-"that the stream is live and not a frozen image."
+"Draws a small red dot on every other frame so you can tell at a glance that "
+"the stream is live and not a frozen image."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:251
@@ -613,394 +611,429 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_settings.jinja2:251
 msgid ""
-"Overlays the current frame rate on the video. The text is redrawn on "
-"every frame, which costs extra CPU on small boards like a Pi."
+"Overlays the current frame rate on the video. The text is redrawn on every "
+"frame, which costs extra CPU on small boards like a Pi."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:258
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:255
+msgid "Printer light"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:261
+msgid "Switch the printer light automatically"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:261
+msgid ""
+"Turns the chamber light on when a print starts and off again when it ends "
+"(finished, failed or cancelled). A pause does not switch it off. If you "
+"toggle the light by hand on the live stream while a print is running, the "
+"automation leaves it alone until the next print starts."
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:268
+msgid "Delay before switching on"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:268
+msgid ""
+"Seconds to wait after the print starts before the light comes on. 0 = "
+"immediately. Useful to skip bed levelling and purging."
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:277
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:293
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:384
+msgid "seconds"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:284
+msgid "Delay before switching off"
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:284
+msgid ""
+"Seconds to wait after the print ends before the light goes off. 0 = "
+"immediately. Raise it to keep the finished part lit for a while."
+msgstr ""
+
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:300
 msgid "Timelapse downloads"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:264
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:306
 msgid "Prefix filenames with the print job name"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:264
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:306
 msgid ""
-"Prepends the print job's file name to each downloaded timelapse, so "
-"videos are easy to match to their print. Only for videos whose print end "
-"this plugin recorded."
+"Prepends the print job's file name to each downloaded timelapse, so videos "
+"are easy to match to their print. Only for videos whose print end this "
+"plugin recorded."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:270
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:312
 msgid "Filename suffix"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:270
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:312
 msgid ""
-"Optional. Appended before the extension (e.g. _bambu) so downloads are "
-"easy to tell apart from OctoPrint's own renders."
+"Optional. Appended before the extension (e.g. _bambu) so downloads are easy "
+"to tell apart from OctoPrint's own renders."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:283
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:325
 msgid "Convert downloaded .avi to .mp4"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:283
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:325
 msgid ""
-"Re-encodes each copied .avi to .mp4 (removing the .avi) using OctoPrint's"
-" ffmpeg. Skipped while printing."
+"Re-encodes each copied .avi to .mp4 (removing the .avi) using OctoPrint's "
+"ffmpeg. Skipped while printing."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:288
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:330
 msgid "ffmpeg found"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:293
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:335
 msgid ""
 "ffmpeg not found — set it under Settings → Webcam &amp; Timelapse. "
 "Conversion will be skipped until then."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:296
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:338
 msgid "Checking ffmpeg…"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:302
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:378
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:344
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:420
 msgid "Use the print job's gcode preview as the thumbnail"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:302
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:344
 msgid ""
 "Off by default. Uses the print job's slicer plate preview (from Bambu "
-"Connector) as the video's thumbnail instead of a frame from the "
-"timelapse. Falls back to a video frame when no preview is found."
+"Connector) as the video's thumbnail instead of a frame from the timelapse. "
+"Falls back to a video frame when no preview is found."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:311
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:353
 msgid "Automatically pull new timelapses after a print"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:311
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:353
 msgid ""
-"After a print finishes, copy/move the printer's new timelapse "
-"automatically — only once the printer is idle and OctoPrint finished its "
-"own render."
+"After a print finishes, copy/move the printer's new timelapse automatically "
+"— only once the printer is idle and OctoPrint finished its own render."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:314
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:356
 msgid ""
 "Copying from the printer's SD card is slow and shares the processor that "
-"drives the touchscreen, so the display can feel sluggish while a copy "
-"runs — it waits for the printer to be idle first, but a copy right after "
-"a print can still make the touchscreen lag until it finishes."
+"drives the touchscreen, so the display can feel sluggish while a copy runs —"
+" it waits for the printer to be idle first, but a copy right after a print "
+"can still make the touchscreen lag until it finishes."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:321
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:363
 msgid "Auto-pull action"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:321
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:363
 msgid ""
-"Copy leaves the video on the printer's SD card; Move deletes it there "
-"after a successful download so the card doesn't fill up."
+"Copy leaves the video on the printer's SD card; Move deletes it there after "
+"a successful download so the card doesn't fill up."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:325
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:367
 msgid "Copy (keep on SD card)"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:326
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:368
 msgid "Move (delete from SD card)"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:333
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:375
 msgid "Delay after print"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:333
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:375
 msgid ""
 "How long to wait after a print before checking the SD card (the printer "
 "writes its timelapse with a delay)."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:342
-msgid "seconds"
-msgstr ""
-
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:349
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:391
 msgid "General"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:355
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:397
 msgid "Enable the raw-footage render pipeline"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:355
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:397
 msgid ""
-"Master switch for turning raw /ipcam footage into videos: harvesting, the"
-" render queue, startup recovery and retention cleanup. Already downloaded"
-" chunks are kept when off."
+"Master switch for turning raw /ipcam footage into videos: harvesting, the "
+"render queue, startup recovery and retention cleanup. Already downloaded "
+"chunks are kept when off."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:360
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:402
 msgid "Show the \"Raw Files\" subtab"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:360
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:402
 msgid ""
-"Cosmetic only: hides the Raw Files subtab from the BambuCam tab. The "
-"render pipeline keeps working in the background."
+"Cosmetic only: hides the Raw Files subtab from the BambuCam tab. The render "
+"pipeline keeps working in the background."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:365
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:407
 msgid "Auto-download /ipcam chunks when a print finishes"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:365
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:407
 msgid ""
 "Harvests this print's raw /ipcam footage into the Raw Files tab when the "
-"print ends, ready to concat and render. Live webcam stream is paused "
-"during the harvest."
+"print ends, ready to concat and render. Live webcam stream is paused during "
+"the harvest."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:368
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:410
 msgid ""
-"Harvesting raw /ipcam footage is slow, touchscreen display can feel "
-"sluggish while a harvest runs."
+"Harvesting raw /ipcam footage is slow, touchscreen display can feel sluggish"
+" while a harvest runs."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:373
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:415
 msgid "Auto-render freshly downloaded groups (default preset, idle only)"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:373
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:415
 msgid ""
-"When a harvest downloads a group completely, queue a render with the "
-"default preset — same job as the Concat + Render button. Queue's idle "
-"gate still applies."
+"When a harvest downloads a group completely, queue a render with the default"
+" preset — same job as the Concat + Render button. Queue's idle gate still "
+"applies."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:378
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:420
 msgid ""
 "Off by default. Uses the print job's slicer plate preview (from Bambu "
 "Connector) as the rendered clip's thumbnail instead of a frame from the "
 "video. Falls back to a video frame when no preview is found."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:384
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:426
 msgid "Default preset"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:384
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:426
 msgid ""
 "Encode profile preselected for a render. Fast 720p: 1280 px, 5×, "
-"smallest/quickest (Pi default). Medium 1080p: 1920 px, 2×, balanced. "
-"Quality 1080p: 1920 px, real-time, best but slow. Original: full res, "
-"archival, slowest."
+"smallest/quickest (Pi default). Medium 1080p: 1920 px, 2×, balanced. Quality"
+" 1080p: 1920 px, real-time, best but slow. Original: full res, archival, "
+"slowest."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:388
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:430
 msgid "Fast 720p"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:389
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:431
 msgid "Medium 1080p"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:390
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:432
 msgid "Quality 1080p"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:391
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:433
 msgid "Original (archive, slow)"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:395
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:437
 msgid "Performance"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:401
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:443
 msgid "Render only when the printer is idle"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:401
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:443
 msgid ""
-"Queued renders wait until no print is running, so ffmpeg never competes "
-"with an active print for CPU. Turn off to render immediately."
+"Queued renders wait until no print is running, so ffmpeg never competes with"
+" an active print for CPU. Turn off to render immediately."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:407
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:449
 msgid "Max queue size"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:407
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:449
 msgid ""
 "Maximum number of renders waiting in the queue; further requests are "
 "rejected until one finishes. Default 10."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:418
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:460
 msgid "Render timeout (s)"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:418
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:460
 msgid ""
 "A render that runs longer than this is aborted and marked failed. 0 = "
-"default (1800 s / 30 min). Raise for the Original preset on slow "
-"hardware."
+"default (1800 s / 30 min). Raise for the Original preset on slow hardware."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:427
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:469
 msgid "Cleanup &amp; Safety"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:433
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:475
 msgid "Move deleted files to trash first (soft-delete)"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:433
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:475
 msgid ""
-"Deleting a raw-footage group moves it to a trash folder instead of "
-"removing it right away; trash is purged by the retention sweep. Off = "
-"delete immediately."
+"Deleting a raw-footage group moves it to a trash folder instead of removing "
+"it right away; trash is purged by the retention sweep. Off = delete "
+"immediately."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:439
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:481
 msgid "Chunk retention (days)"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:439
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:481
 msgid ""
 "Rendered groups are cleaned this many days after their render (0 = keep "
-"forever); trash entries older than this are purged. Groups that were "
-"never rendered are exempt."
+"forever); trash entries older than this are purged. Groups that were never "
+"rendered are exempt."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:450
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:492
 msgid "Stale lock timeout (s)"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:450
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:492
 msgid ""
-"If a render crashes it leaves a lockfile behind; locks older than this "
-"are reclaimed at startup and the job is marked failed. Default 86400 (1 "
-"day)."
+"If a render crashes it leaves a lockfile behind; locks older than this are "
+"reclaimed at startup and the job is marked failed. Default 86400 (1 day)."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:462
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:504
 msgid "Daemon"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:468
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:510
 msgid "Automatically restart the stream server after crashes"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:468
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:510
 msgid ""
-"Restarts the stream server when it exits unexpectedly, up to 'Max "
-"restarts' within the restart window below."
+"Restarts the stream server when it exits unexpectedly, up to 'Max restarts' "
+"within the restart window below."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:473
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:515
 msgid "Log HTTP requests of the stream server (debug)"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:473
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:515
 msgid ""
 "Writes every HTTP request to the stream server into its own rotating log "
 "file (plugin_bambucam_http.log). Only needed for debugging."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:479
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:521
 msgid "Max restarts"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:479
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:521
 msgid ""
-"Give up auto-restarting after this many crashes within the restart "
-"window. Only used when auto-restart is enabled."
+"Give up auto-restarting after this many crashes within the restart window. "
+"Only used when auto-restart is enabled."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:490
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:532
 msgid "Restart window (seconds)"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:490
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:532
 msgid ""
 "Time window over which the crash count is measured. Only used when auto-"
 "restart is enabled."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:499
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:541
 msgid "FFmpeg / FFprobe"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:501
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:543
 msgid ""
 "Leave empty to use OctoPrint's webcam ffmpeg and the ffprobe next to it. "
 "Used for the Raw Files render pipeline."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:505
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:547
 msgid "ffmpeg path"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:505
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:547
 msgid ""
-"Full path to the ffmpeg binary used by the Raw Files render pipeline. "
-"Empty = OctoPrint's webcam ffmpeg. 'Test' runs it with -version."
+"Full path to the ffmpeg binary used by the Raw Files render pipeline. Empty "
+"= OctoPrint's webcam ffmpeg. 'Test' runs it with -version."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:513
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:555
 msgid "Test FFmpeg"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:520
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:562
 msgid "ffprobe path"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:520
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:562
 msgid ""
-"Full path to ffprobe, used to read chunk durations and resolutions. Empty"
-" = the ffprobe next to the ffmpeg above. 'Test' runs it with -version."
+"Full path to ffprobe, used to read chunk durations and resolutions. Empty = "
+"the ffprobe next to the ffmpeg above. 'Test' runs it with -version."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:528
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:570
 msgid "Test FFprobe"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:535
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:577
 msgid "ffmpeg threads"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:535
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:577
 msgid ""
-"CPU threads ffmpeg uses to encode. 1 (default) keeps a Pi responsive; "
-"raise for faster renders; 0 = all cores. Applies to both the Raw Files "
-"render and the printer-timelapse .avi→.mp4 conversion."
+"CPU threads ffmpeg uses to encode. 1 (default) keeps a Pi responsive; raise "
+"for faster renders; 0 = all cores. Applies to both the Raw Files render and "
+"the printer-timelapse .avi→.mp4 conversion."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:544
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:586
 msgid "Diagnostics"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:550
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:592
 msgid "Query stream server (/?info)"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:552
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:594
 msgid ""
-"Fetches live stats from the local stream server (the access code is never"
-" returned). The server must be running."
+"Fetches live stats from the local stream server (the access code is never "
+"returned). The server must be running."
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:565
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:607
 msgid "Powered by"
 msgstr ""
 
-#: octoprint_bambucam/templates/bambucam_settings.jinja2:568
+#: octoprint_bambucam/templates/bambucam_settings.jinja2:610
 msgid "by Igor Maculan, Christopher RYU, Shell Shrader and disconn3ct."
 msgstr ""
 
@@ -1075,8 +1108,8 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_tab.jinja2:96
 msgid ""
-"No timelapses found. Insert an SD card and enable timelapse capture in "
-"the slicer/printer."
+"No timelapses found. Insert an SD card and enable timelapse capture in the "
+"slicer/printer."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_tab.jinja2:107
@@ -1114,9 +1147,8 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_tab.jinja2:174
 msgid ""
-"These videos were downloaded but not converted to .mp4 (conversion was "
-"off, skipped while printing, or ffmpeg failed). Convert them to play "
-"everywhere."
+"These videos were downloaded but not converted to .mp4 (conversion was off, "
+"skipped while printing, or ffmpeg failed). Convert them to play everywhere."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_tab.jinja2:179
@@ -1145,9 +1177,9 @@ msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_webcam.jinja2:11
 msgid ""
-"Check that BambuCam is enabled and configured (Settings > BambuCam). For "
-"the live view in the browser the bind address must be 0.0.0.0 or a stream"
-" URL override must be set."
+"Check that BambuCam is enabled and configured (Settings > BambuCam). For the"
+" live view in the browser the bind address must be 0.0.0.0 or a stream URL "
+"override must be set."
 msgstr ""
 
 #: octoprint_bambucam/templates/bambucam_webcam.jinja2:22
@@ -1161,4 +1193,3 @@ msgstr ""
 #: octoprint_bambucam/templates/bambucam_webcam.jinja2:24
 msgid "Light off"
 msgstr ""
-

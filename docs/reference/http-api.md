@@ -146,6 +146,11 @@ our own would time out. Only when BambuConnector is not the active connection
 does it fall back to our own MQTT client (TCP `8883`), reusing the monitor's
 standing socket if one is open.
 
+A click **during a print** also takes precedence over the
+[automatic chamber light](configuration.md): the automation then leaves the
+light alone until the next print starts. The automatic path emits the same
+`led_state` push described below, so the UI stays in sync without a monitor.
+
 ### `led_monitor_start` / `led_monitor_stop`
 
 Requires **SETTINGS**. Opens or closes a standing MQTT connection that tracks
@@ -405,7 +410,10 @@ live without polling:
 - **`led_state`** — the real chamber-light state, pushed by the fallback MQTT
   monitor whenever it changes: `{ "type": "led_state", "on": true }`. (When
   BambuConnector drives the light, the UI reads the state from the GET status
-  instead.)
+  instead.) The [automatic chamber light](configuration.md) emits the same
+  message after it switches the light, so the toggle stays in sync even when no
+  monitor is open; the handler ignores a push that would stomp a click still in
+  flight.
 
 The Raw Files render pipeline pushes three more channels:
 

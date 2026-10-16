@@ -38,6 +38,16 @@ timelapse — so two ffmpeg encodes never overlap. See
 [Daemon supervisor](daemon.md) and the auto-sync flow in
 [Data flow](data-flow.md).
 
+`on_event()` also drives the **automatic chamber light** when `auto_led` is
+on: `PrintStarted` switches the printer light on, the end of the print (done,
+failed or cancelled) switches it off, each after its own configurable delay. A
+pause is not an end. The switch runs on a daemon thread — the event handler
+only arms it, so OctoPrint's event thread is never blocked — and shares the
+manual toggle's busy flag, because the printer's MQTT broker tolerates very few
+connections. A manual toggle during a print takes precedence until the next
+`PrintStarted`; before switching off it also reads the printer's real state, so
+a light switched at the printer's own display is left alone. See [Configuration](../reference/configuration.md).
+
 It also records **real print dates**. On `PrintStarted` it snapshots the SD
 card's videos (name → size); on `PrintDone` it waits for the printer to finish
 rendering, finds the video that is new or grew since the snapshot, and stores
