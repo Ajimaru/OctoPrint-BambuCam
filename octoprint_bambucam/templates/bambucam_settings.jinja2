@@ -252,6 +252,48 @@
                     </label>
                 </div>
             </div>
+            <h4>{{ _("Printer light") }}</h4>
+            <div class="control-group">
+                <div class="controls">
+                    <label class="checkbox">
+                        <input type="checkbox"
+                               data-bind="checked: settings.plugins.bambucam.auto_led" />
+                        {{ _("Switch the printer light automatically") }}{{ help(_("Turns the chamber light on when a print starts and off again when it ends (finished, failed or cancelled). A pause does not switch it off. If you toggle the light by hand on the live stream while a print is running, the automation leaves it alone until the next print starts.") ) }}
+                    </label>
+                </div>
+            </div>
+            <div class="control-group"
+                 data-bind="visible: settings.plugins.bambucam.auto_led">
+                <label class="control-label">
+                    {{ _("Delay before switching on") }}{{ help(_("Seconds to wait after the print starts before the light comes on. 0 = immediately. Useful to skip bed levelling and purging.") ) }}
+                </label>
+                <div class="controls">
+                    <div class="input-append">
+                        <input type="number"
+                               min="0"
+                               max="3600"
+                               class="input-small"
+                               data-bind="value: settings.plugins.bambucam.auto_led_on_delay" />
+                        <span class="add-on">{{ _("seconds") }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="control-group"
+                 data-bind="visible: settings.plugins.bambucam.auto_led">
+                <label class="control-label">
+                    {{ _("Delay before switching off") }}{{ help(_("Seconds to wait after the print ends before the light goes off. 0 = immediately. Raise it to keep the finished part lit for a while.") ) }}
+                </label>
+                <div class="controls">
+                    <div class="input-append">
+                        <input type="number"
+                               min="0"
+                               max="3600"
+                               class="input-small"
+                               data-bind="value: settings.plugins.bambucam.auto_led_off_delay" />
+                        <span class="add-on">{{ _("seconds") }}</span>
+                    </div>
+                </div>
+            </div>
         </div>
         <!-- ── Tab: Timelapse ────────────────────────────────────────────── -->
         <div class="tab-pane" id="bambucam_tab_timelapse">

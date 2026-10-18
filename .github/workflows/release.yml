@@ -123,12 +123,18 @@ jobs:
 
           cp -f "$zip_versioned" "$zip_latest"
 
-      - name: Create GitHub release
+      - name: Create GitHub release (draft)
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           files: |
             release_zips/*
+          # Notes are grouped by PR label; the categories live in
+          # .github/release.yml.
           generate_release_notes: true
+          # Always a draft: a release is published by hand once the notes and
+          # the attached artifacts have been eyeballed. Pushing a tag must
+          # never publish on its own.
+          draft: true
           prerelease: ${{ steps.prerelease.outputs.is_prerelease }}
 
       # Uncomment to publish to PyPI:
