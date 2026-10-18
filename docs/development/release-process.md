@@ -24,6 +24,44 @@ build time (`octoprint_bambucam/_version.py`) and surfaced through
    sdist and attaches them to the GitHub Release, plus a versioned source zip
    (`OctoPrint-BambuCam-<version>.zip`) and a stable
    `OctoPrint-BambuCam-latest.zip`.
+5. The workflow creates the release as a **draft**. Review the notes and the
+   attached artifacts, then publish it by hand (`gh release edit <tag> --draft=false`
+   or the **Publish release** button).
+
+!!! warning "A draft is invisible to users"
+
+    `releases/latest` skips drafts, so the Plugin Manager install URL keeps
+    serving the previous version until the draft is published. A tag alone
+    ships nothing — step 5 is what releases.
+
+## Release notes
+
+The workflow asks GitHub to generate the notes, which groups merged pull
+requests by **label**. The categories live in `.github/release.yml`:
+
+| Section             | Labels                                     |
+| ------------------- | ------------------------------------------ |
+| ⚠️ Breaking Changes | `breaking`, `breaking-change`              |
+| 🔒 Security         | `security`                                 |
+| ✨ New Features     | `enhancement`, `feature`                   |
+| 🐛 Bug Fixes        | `bug`, `fix`                               |
+| ⚡ Performance      | `performance`                              |
+| ♻️ Refactoring      | `refactor`                                 |
+| 📚 Documentation    | `documentation`                            |
+| 🧪 Tests            | `test`                                     |
+| 📦 Dependencies     | `dependencies`, `depfu`                    |
+| 🔧 CI / Tooling     | `ci`, `tooling`, `chore`, `github_actions` |
+| 🧩 Other Changes    | anything else                              |
+
+A PR lands in the **first** matching section, so the order above is a priority
+rule: one labelled both `bug` and `enhancement` appears under _New Features_
+only, never twice. Put the label that should win further up — or re-order the
+file.
+
+`skip-changelog` leaves a PR out of the notes entirely.
+
+Label every PR before merging. An unlabelled one still shows up, but under
+_Other Changes_ rather than where it belongs.
 
 ## Update artifact
 
