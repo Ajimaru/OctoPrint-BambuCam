@@ -12,7 +12,11 @@ Split into five tabs:
   hostname and access code (read-only in auto mode), and a **Test connection**
   button (`testConnection`).
 - **Webcam Image** — resolution override, rotation, FPS watermark and
-  activity-dot overlays for the live webcam stream.
+  activity-dot overlays for the live webcam stream, plus a **Printer light**
+  group: **Switch the printer light automatically** (`auto_led`) with its
+  **switch-on** and **switch-off delays**, which only appear while the toggle
+  is on. See the
+  [configuration reference](../reference/configuration.md).
 - **Printer Timelapse** — the `.avi` → `.mp4` conversion toggle with an
   **ffmpeg indicator** (`fetchFfmpegStatus`), a **"Use the print job's gcode
   preview as the thumbnail"** toggle (`sd_thumb_from_gcode`), plus the auto-sync
@@ -56,7 +60,9 @@ Template: `bambucam_webcam.jinja2`, bound to `#bambucam_webcam_container`.
 
 Renders the MJPEG `<img id="bambucam_stream">` plus a **light toggle** button
 overlaid on the stream (`toggleLed`, shown only when `ledAvailable`). The
-viewmodel:
+button also reflects **automatic** switches: the auto-LED path pushes the same
+`led_state` message the MQTT monitor uses, and the handler ignores a push that
+would stomp a click still in flight. The viewmodel:
 
 - computes the stream `src` (`streamUrl`), appending a cache-buster.
 - shows a load/error state (`onStreamLoaded` / `onStreamErrored`).

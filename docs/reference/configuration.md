@@ -31,8 +31,30 @@ marked **↻** trigger a daemon restart when changed (they are members of
 | `auto_sync`           | `False`     |  —  | Pull a new timelapse automatically after a print.             |
 | `auto_sync_delay`     | `420`       |  —  | Seconds to wait after a print before checking the SD card.    |
 | `auto_sync_action`    | `"copy"`    |  —  | `"copy"` (keep on SD) or `"move"` (delete from SD).           |
+| `auto_led`            | `False`     |  —  | Switch the printer light on/off around a print (note below).  |
+| `auto_led_on_delay`   | `0`         |  —  | Seconds after a print starts before the light comes on.       |
+| `auto_led_off_delay`  | `0`         |  —  | Seconds after a print ends before the light goes off.         |
 | `print_dates`         | `{}`        |  —  | Internal: SD video name → real print-end time (note below).   |
 | `print_jobs`          | `{}`        |  —  | Internal: SD video name → gcode job name (labels harvests).   |
+
+!!! note "Automatic printer light"
+
+    With `auto_led` on, `PrintStarted` turns the chamber light **on** and the
+    end of the print (done, failed or cancelled) turns it **off**, each after
+    its own delay. A **pause does not** switch it off — you often pause
+    specifically to look inside. The light is forced off rather than restored
+    to its pre-print state, because that state is frequently unknown.
+
+    A **manual toggle wins**: switching the light by hand on the live stream
+    while a print is running keeps the automation off it until the next print
+    starts. A light switched off **at the printer's display** never reaches our
+    API, so the switch-off instead checks the real state
+    (`bpm.BambuPrinter.light_state` via BambuConnector) and skips an
+    already-off light. An unknown state is no evidence, so the switch then
+    proceeds. The light is driven over the same path as the manual button
+    (BambuConnector's open MQTT connection, with a direct connection as
+    fallback), sharing its busy flag so the two never open two sockets on the
+    printer's broker. A pending switch is lost if OctoPrint restarts.
 
 !!! note "Printer offline is not a crash"
 

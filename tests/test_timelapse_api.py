@@ -170,6 +170,87 @@ class TestSetLed:
         assert out == {"ok": True}
         assert sent == [True]
 
+    def test_marks_manual_override_during_a_print(self, plugin, app):
+        """A click while printing takes precedence over the auto-LED path."""
+
+        class FakeMqtt:
+            def set_chamber_light(self, on):
+                pass
+
+        plugin._make_mqtt = FakeMqtt
+        plugin._printer.is_printing = MagicMock(return_value=True)
+        _json(plugin, "set_led", {"on": True}, app)
+        assert plugin._auto_led_overridden is True
+
+    def test_no_manual_override_while_idle(self, plugin, app):
+        """A click while idle must not affect the next print."""
+
+        class FakeMqtt:
+            def set_chamber_light(self, on):
+                pass
+
+        plugin._make_mqtt = FakeMqtt
+        _json(plugin, "set_led", {"on": True}, app)
+        assert plugin._auto_led_overridden is False
+
+
+class TestApplyLed:
+    """The transport seam shared by the API handler and the auto-LED path."""
+
+    def test_returns_none_on_success(self, plugin):
+        class FakeMqtt:
+            def set_chamber_light(self, on):
+                pass
+
+        plugin._make_mqtt = FakeMqtt
+        plugin._led_monitor = None
+        assert plugin._apply_led(True) is None
+
+    def test_returns_mqtt_reason(self, plugin):
+        from octoprint_bambucam.mqtt import MqttError
+
+        class FakeMqtt:
+            def set_chamber_light(self, on):
+                raise MqttError("unreachable")
+
+        plugin._make_mqtt = FakeMqtt
+        plugin._led_monitor = None
+        assert plugin._apply_led(True) == "unreachable"
+
+    def test_returns_error_on_unexpected(self, plugin):
+        class FakeMqtt:
+            def set_chamber_light(self, on):
+                raise RuntimeError("boom")
+
+        plugin._make_mqtt = FakeMqtt
+        plugin._led_monitor = None
+        assert plugin._apply_led(True) == "error"
+
+
+class TestCurrentLedState:
+    """The live read that also sees a light switched at the printer."""
+
+    def test_prefers_the_connector_read(self, plugin):
+        plugin._led_state = False
+        with patch(
+            "octoprint_bambucam.connector_led.current_state", return_value=True
+        ):
+            assert plugin._current_led_state() is True
+
+    def test_falls_back_to_the_monitor_observation(self, plugin):
+        plugin._led_state = True
+        with patch(
+            "octoprint_bambucam.connector_led.current_state", return_value=None
+        ):
+            assert plugin._current_led_state() is True
+
+    def test_none_when_nothing_knows(self, plugin):
+        plugin._led_state = None
+        with patch(
+            "octoprint_bambucam.connector_led.current_state", return_value=None
+        ):
+            assert plugin._current_led_state() is None
+
 
 class TestLedMonitor:
     def test_start_uses_connector_when_available(self, plugin, app):
