@@ -28,8 +28,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Pinned: actions/setup-python has no Python 3.9 for ubuntu-latest
+          # (26.04) any more, only up to 24.04.
           - python-version: "3.9"
-            os: ubuntu-latest
+            os: ubuntu-24.04
             run-precommit: false # Modern pre-commit hooks require Python >= 3.10
             run-coverage: false
             run-build: false

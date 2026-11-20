@@ -18,12 +18,12 @@
 [![Downloads][badge-downloads]](https://github.com/Ajimaru/OctoPrint-BambuCam/releases)
 [![Made with Love][badge-love]](https://github.com/Ajimaru/OctoPrint-BambuCam)
 
-[badge-license]: https://img.shields.io/github/license/Ajimaru/OctoPrint-BambuCam?style=flat-square
-[badge-python]: https://img.shields.io/badge/python-3.9%2B-blue.svg?style=flat-square
-[badge-octoprint]: https://img.shields.io/badge/OctoPrint-1.10.0%2B-blue.svg?style=flat-square
-[badge-release]: https://img.shields.io/github/v/release/Ajimaru/OctoPrint-BambuCam?style=flat-square
-[badge-prerelease]: https://img.shields.io/github/v/release/Ajimaru/OctoPrint-BambuCam?include_prereleases&label=prerelease&style=flat-square
-[badge-downloads]: https://img.shields.io/github/downloads/Ajimaru/OctoPrint-BambuCam/total.svg?style=flat-square
+[badge-license]: https://img.shields.io/github/license/Ajimaru/OctoPrint-BambuCam?style=flat-square&logo=gnu&logoColor=white
+[badge-python]: https://img.shields.io/badge/python-3.9%2B-blue.svg?style=flat-square&logo=python&logoColor=white
+[badge-octoprint]: https://img.shields.io/badge/OctoPrint-1.10.0%2B-blue.svg?style=flat-square&logo=octoprint&logoColor=white
+[badge-release]: https://img.shields.io/github/v/release/Ajimaru/OctoPrint-BambuCam?style=flat-square&logo=github&logoColor=white
+[badge-prerelease]: https://img.shields.io/github/v/release/Ajimaru/OctoPrint-BambuCam?include_prereleases&label=prerelease&style=flat-square&logo=github&logoColor=white
+[badge-downloads]: https://img.shields.io/github/downloads/Ajimaru/OctoPrint-BambuCam/total.svg?style=flat-square&logo=github&logoColor=white
 [badge-love]: https://img.shields.io/badge/made_with-%E2%9D%A4%EF%B8%8F-ff69b4?style=flat-square
 
 ### Live camera stream from Bambu Lab printers — inside OctoPrint
@@ -385,11 +385,11 @@ systeminfo bundle when opening a bug report.
 [![Lint][b-lint]](https://github.com/Ajimaru/OctoPrint-BambuCam/actions/workflows/lint.yml?query=branch%3Amain)
 [![Bandit SARIF][b-bandit]](https://github.com/Ajimaru/OctoPrint-BambuCam/actions/workflows/bandit-sarif.yml?query=branch%3Amain)
 
-[b-ci]: https://img.shields.io/github/actions/workflow/status/Ajimaru/OctoPrint-BambuCam/ci.yml?branch=main&style=flat-square&label=CI
-[b-docs]: https://img.shields.io/github/actions/workflow/status/Ajimaru/OctoPrint-BambuCam/docs.yml?branch=main&style=flat-square&label=docs
-[b-i18n]: https://img.shields.io/github/actions/workflow/status/Ajimaru/OctoPrint-BambuCam/i18n.yml?branch=main&style=flat-square&label=i18n
-[b-lint]: https://img.shields.io/github/actions/workflow/status/Ajimaru/OctoPrint-BambuCam/lint.yml?branch=main&style=flat-square&label=Lint
-[b-bandit]: https://img.shields.io/github/actions/workflow/status/Ajimaru/OctoPrint-BambuCam/bandit-sarif.yml?branch=main&style=flat-square&label=Bandit%20SARIF
+[b-ci]: https://img.shields.io/github/actions/workflow/status/Ajimaru/OctoPrint-BambuCam/ci.yml?branch=main&style=flat-square&label=CI&logo=githubactions&logoColor=white
+[b-docs]: https://img.shields.io/github/actions/workflow/status/Ajimaru/OctoPrint-BambuCam/docs.yml?branch=main&style=flat-square&label=docs&logo=githubactions&logoColor=white
+[b-i18n]: https://img.shields.io/github/actions/workflow/status/Ajimaru/OctoPrint-BambuCam/i18n.yml?branch=main&style=flat-square&label=i18n&logo=githubactions&logoColor=white
+[b-lint]: https://img.shields.io/github/actions/workflow/status/Ajimaru/OctoPrint-BambuCam/lint.yml?branch=main&style=flat-square&label=Lint&logo=githubactions&logoColor=white
+[b-bandit]: https://img.shields.io/github/actions/workflow/status/Ajimaru/OctoPrint-BambuCam/bandit-sarif.yml?branch=main&style=flat-square&label=Bandit%20SARIF&logo=githubactions&logoColor=white
 
 ### 🧪 2. Code Quality & Formatting
 
@@ -404,14 +404,14 @@ systeminfo bundle when opening a bug report.
 [![Depfu][b-depfu]](https://depfu.com/)
 [![Known Vulnerabilities][b-snyk]](https://snyk.io/test/github/Ajimaru/OctoPrint-BambuCam)
 
-[b-black]: https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square
-[b-isort]: https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat-square&labelColor=ef8336
-[b-prettier]: https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square
+[b-black]: https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square&logo=black&logoColor=white
+[b-isort]: https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat-square&labelColor=ef8336&logo=python&logoColor=white
+[b-prettier]: https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square&logo=prettier&logoColor=white
 [b-precommit]: https://img.shields.io/badge/pre--commit-enabled-brightgreen?style=flat-square&logo=pre-commit&logoColor=white
-[b-codacy]: https://img.shields.io/codacy/grade/75d9ec1b49a64a3aae3615e21e6ff2ce?style=flat-square
-[b-coverage]: https://img.shields.io/codecov/c/github/Ajimaru/OctoPrint-BambuCam?style=flat-square
-[b-pylint]: https://img.shields.io/badge/pylint-10.0-green.svg?style=flat-square
-[b-sec]: https://img.shields.io/badge/bandit-security-green.svg?style=flat-square
+[b-codacy]: https://img.shields.io/codacy/grade/75d9ec1b49a64a3aae3615e21e6ff2ce?style=flat-square&logo=codacy&logoColor=white
+[b-coverage]: https://img.shields.io/codecov/c/github/Ajimaru/OctoPrint-BambuCam?style=flat-square&logo=codecov&logoColor=white
+[b-pylint]: https://img.shields.io/badge/pylint-10.0-green.svg?style=flat-square&logo=python&logoColor=white
+[b-sec]: https://img.shields.io/badge/bandit-security-green.svg?style=flat-square&logo=python&logoColor=white
 [b-depfu]: https://badges.depfu.com/badges/7d0d03953a51f03e18a2eae2453d64f5/status.svg
 [b-snyk]: https://snyk.io/test/github/Ajimaru/OctoPrint-BambuCam/badge.svg
 
@@ -426,14 +426,14 @@ systeminfo bundle when opening a bug report.
 [![OctoPrint][b-op]](https://octoprint.org)
 [![Maintenance][b-maint]](https://github.com/Ajimaru/OctoPrint-BambuCam/graphs/commit-activity)
 
-[b-semver]: https://img.shields.io/badge/semver-2.0.0-blue?style=flat-square
-[b-reldate]: https://img.shields.io/github/release-date/Ajimaru/OctoPrint-BambuCam?style=flat-square
-[b-latest]: https://img.shields.io/github/v/release/Ajimaru/OctoPrint-BambuCam?style=flat-square
-[b-dl]: https://img.shields.io/github/downloads/Ajimaru/OctoPrint-BambuCam/total.svg?style=flat-square
-[b-pre]: https://img.shields.io/github/v/release/Ajimaru/OctoPrint-BambuCam?style=flat-square&include_prereleases&label=pre-release
-[b-py]: https://img.shields.io/badge/python-3.9%2B-blue.svg?style=flat-square
-[b-op]: https://img.shields.io/badge/OctoPrint-1.10.0%2B-blue.svg?style=flat-square
-[b-maint]: https://img.shields.io/maintenance/yes/2026?style=flat-square
+[b-semver]: https://img.shields.io/badge/semver-2.0.0-blue?style=flat-square&logo=semver&logoColor=white
+[b-reldate]: https://img.shields.io/github/release-date/Ajimaru/OctoPrint-BambuCam?style=flat-square&logo=github&logoColor=white
+[b-latest]: https://img.shields.io/github/v/release/Ajimaru/OctoPrint-BambuCam?style=flat-square&logo=github&logoColor=white
+[b-dl]: https://img.shields.io/github/downloads/Ajimaru/OctoPrint-BambuCam/total.svg?style=flat-square&logo=github&logoColor=white
+[b-pre]: https://img.shields.io/github/v/release/Ajimaru/OctoPrint-BambuCam?style=flat-square&include_prereleases&label=pre-release&logo=github&logoColor=white
+[b-py]: https://img.shields.io/badge/python-3.9%2B-blue.svg?style=flat-square&logo=python&logoColor=white
+[b-op]: https://img.shields.io/badge/OctoPrint-1.10.0%2B-blue.svg?style=flat-square&logo=octoprint&logoColor=white
+[b-maint]: https://img.shields.io/maintenance/yes/2026?style=flat-square&logo=github&logoColor=white
 
 ### 📊 4. Repository Activity
 
@@ -445,13 +445,13 @@ systeminfo bundle when opening a bug report.
 [![Commit Activity][b-ca]](https://github.com/Ajimaru/OctoPrint-BambuCam/graphs/commit-activity)
 [![Contributors][b-con]](https://github.com/Ajimaru/OctoPrint-BambuCam/graphs/contributors)
 
-[b-oi]: https://img.shields.io/github/issues/Ajimaru/OctoPrint-BambuCam?style=flat-square
-[b-ci2]: https://img.shields.io/github/issues-closed-raw/Ajimaru/OctoPrint-BambuCam?style=flat-square
-[b-opr]: https://img.shields.io/github/issues-pr/Ajimaru/OctoPrint-BambuCam?style=flat-square
-[b-cpr]: https://img.shields.io/github/issues-pr-closed/Ajimaru/OctoPrint-BambuCam?style=flat-square
-[b-lc]: https://img.shields.io/github/last-commit/Ajimaru/OctoPrint-BambuCam?style=flat-square
-[b-ca]: https://img.shields.io/github/commit-activity/y/Ajimaru/OctoPrint-BambuCam?style=flat-square
-[b-con]: https://img.shields.io/github/contributors/Ajimaru/OctoPrint-BambuCam?style=flat-square
+[b-oi]: https://img.shields.io/github/issues/Ajimaru/OctoPrint-BambuCam?style=flat-square&logo=github&logoColor=white
+[b-ci2]: https://img.shields.io/github/issues-closed-raw/Ajimaru/OctoPrint-BambuCam?style=flat-square&logo=github&logoColor=white
+[b-opr]: https://img.shields.io/github/issues-pr/Ajimaru/OctoPrint-BambuCam?style=flat-square&logo=github&logoColor=white
+[b-cpr]: https://img.shields.io/github/issues-pr-closed/Ajimaru/OctoPrint-BambuCam?style=flat-square&logo=github&logoColor=white
+[b-lc]: https://img.shields.io/github/last-commit/Ajimaru/OctoPrint-BambuCam?style=flat-square&logo=github&logoColor=white
+[b-ca]: https://img.shields.io/github/commit-activity/y/Ajimaru/OctoPrint-BambuCam?style=flat-square&logo=github&logoColor=white
+[b-con]: https://img.shields.io/github/contributors/Ajimaru/OctoPrint-BambuCam?style=flat-square&logo=github&logoColor=white
 
 ### 🧾 5. Metadata
 
@@ -463,13 +463,13 @@ systeminfo bundle when opening a bug report.
 [![License][b-lic]](https://github.com/Ajimaru/OctoPrint-BambuCam/blob/main/LICENSE)
 [![PRs Welcome][b-prs]](https://github.com/Ajimaru/OctoPrint-BambuCam/pulls)
 
-[b-size]: https://img.shields.io/github/languages/code-size/Ajimaru/OctoPrint-BambuCam?style=flat-square
-[b-secp]: https://img.shields.io/badge/security-policy-blue?style=flat-square
-[b-snyks]: https://img.shields.io/badge/security-snyk-blueviolet?style=flat-square
-[b-langc]: https://img.shields.io/github/languages/count/Ajimaru/OctoPrint-BambuCam?style=flat-square
-[b-top]: https://img.shields.io/github/languages/top/Ajimaru/OctoPrint-BambuCam?style=flat-square
-[b-lic]: https://img.shields.io/github/license/Ajimaru/OctoPrint-BambuCam?style=flat-square
-[b-prs]: https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square
+[b-size]: https://img.shields.io/github/languages/code-size/Ajimaru/OctoPrint-BambuCam?style=flat-square&logo=github&logoColor=white
+[b-secp]: https://img.shields.io/badge/security-policy-blue?style=flat-square&logo=github&logoColor=white
+[b-snyks]: https://img.shields.io/badge/security-snyk-blueviolet?style=flat-square&logo=snyk&logoColor=white
+[b-langc]: https://img.shields.io/github/languages/count/Ajimaru/OctoPrint-BambuCam?style=flat-square&logo=github&logoColor=white
+[b-top]: https://img.shields.io/github/languages/top/Ajimaru/OctoPrint-BambuCam?style=flat-square&logo=github&logoColor=white
+[b-lic]: https://img.shields.io/github/license/Ajimaru/OctoPrint-BambuCam?style=flat-square&logo=gnu&logoColor=white
+[b-prs]: https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square&logo=github&logoColor=white
 
 </details>
 <!-- markdownlint-enable MD033 -->
@@ -478,8 +478,8 @@ systeminfo bundle when opening a bug report.
 
 ![Stars][b-stars] ![Forks][b-forks] ![Watchers][b-watch]
 
-[b-stars]: https://img.shields.io/github/stars/Ajimaru/OctoPrint-BambuCam?style=social
-[b-forks]: https://img.shields.io/github/forks/Ajimaru/OctoPrint-BambuCam?style=social
-[b-watch]: https://img.shields.io/github/watchers/Ajimaru/OctoPrint-BambuCam?style=social
+[b-stars]: https://img.shields.io/github/stars/Ajimaru/OctoPrint-BambuCam?style=social&logo=github
+[b-forks]: https://img.shields.io/github/forks/Ajimaru/OctoPrint-BambuCam?style=social&logo=github
+[b-watch]: https://img.shields.io/github/watchers/Ajimaru/OctoPrint-BambuCam?style=social&logo=github
 
 **Like this plugin?** ⭐ Star the repo and share it with the OctoPrint community!
